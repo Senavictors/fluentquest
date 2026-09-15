@@ -1,0 +1,21 @@
+node_modules/
+.next/
+*.tsbuildinfo
+test-results/
+playwright-report/
+.impeccable/review/
+
+# Dados locais do proprietário — nunca versionados
+data/
+data-restore/
+
+# ---- Sempre ignorar: segredos ----
+.env*
+!.env.example
+secrets/**
+credentials/**
+*.pem
+*.key
+backups/
+backups/**
+dumps/**

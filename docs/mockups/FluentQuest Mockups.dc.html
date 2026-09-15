@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/broadsheet-3de390ba-e938-44cc-a393-5b9c1fb374c5/styles.css">
+<script src="_ds/broadsheet-3de390ba-e938-44cc-a393-5b9c1fb374c5/_ds_bundle.js"></script>
+<style>
+body{margin:0;background:#e6e4e1}
+.dv-turn{padding:44px 48px 36px;scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:12px;margin:0 0 26px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#201e1d;color:#f3f2f2;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 14px/1.2 "Source Serif 4",serif;color:#201e1d}
+.dv-opts{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#201e1d;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:10px;font:400 12.5px/1.3 "Source Serif 4",serif;color:rgba(32,30,29,.62)}
+.dv-card{background:#f3f2f2;box-shadow:0 2px 14px rgba(0,0,0,.14);overflow:hidden}
+.dv-opt:target .dv-oid{background:#0088b0;color:#fff}
+.dv-next{margin:26px 0 0;font:13px/1.6 "Source Serif 4",serif;color:rgba(32,30,29,.6)}
+.note{font:400 12px/1.5 "Source Serif 4",serif;color:#006786;max-width:1280px}
+</style></helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">FluentQuest — oito telas de desktop, mais duas variações de layout</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Hoje — uma missão, uma fila, um botão</div>
+<div class="dv-card" style="width:1280px;height:820px;display:grid;grid-template-columns:208px 1fr">
+  <aside style="padding:26px 20px;display:flex;flex-direction:column;gap:30px;border-right:1px solid var(--color-divider)">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:19px;letter-spacing:-.02em">FluentQuest</div>
+    <nav style="display:flex;flex-direction:column;gap:2px;font-size:15px">
+      <span style="padding:7px 10px;background:var(--color-accent-100);color:var(--color-accent-800);border-radius:2px">Hoje</span>
+      <span style="padding:7px 10px">Biblioteca</span>
+      <span style="padding:7px 10px">Praticar</span>
+      <span style="padding:7px 10px;display:flex;justify-content:space-between">Revisar <span style="color:var(--color-accent-2-700)">14</span></span>
+      <span style="padding:7px 10px">Jornada</span>
+    </nav>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">
+      <div style="font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-neutral-600)">Uso do mês</div>
+      <div style="font-size:15px">US$ 18,40 <span style="color:var(--color-neutral-600);font-size:12px">/ 40,00</span></div>
+      <div style="height:3px;background:var(--color-neutral-300)"><div style="width:46%;height:100%;background:var(--color-accent)"></div></div>
+      <div style="margin-top:14px;font-size:13px;color:var(--color-neutral-700)">Perfil · Configurações</div>
+    </div>
+  </aside>
+  <main style="padding:34px 44px;display:flex;flex-direction:column;gap:30px;overflow:hidden">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);border-bottom:2px solid var(--color-text);padding-bottom:8px">
+      <span>Quinta, 14 de setembro de 2026</span><span>Sessão de 25 min · modo foco</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:56px;align-items:start">
+      <div>
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:10px">Missão de hoje · trilha Daily</div>
+        <h1 style="font-size:46px;margin:0 0 14px;line-height:1.06">Explicar um bloqueio<br>sem roteiro</h1>
+        <p style="font-size:17px;line-height:1.55;max-width:46ch;color:var(--color-neutral-800)">Você assiste 4 minutos de <em>“Debugging a flaky test”</em>, recupera três expressões de memória e grava uma atualização de 90 segundos. O tutor devolve um ponto forte e uma correção.</p>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:22px">
+          <button class="btn btn-primary" style="font-size:15px;padding:12px 22px;min-height:44px">Continuar minha sessão</button>
+          <button class="btn btn-secondary" style="min-height:44px">Trocar missão</button>
+          <span style="font-size:13px;color:var(--color-neutral-600)">12 min restantes</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:34px;align-items:center">
+          <span style="font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-neutral-600);margin-right:6px">Etapas</span>
+          <span class="tag tag-accent">Entender 4′</span><span class="tag tag-neutral">Recuperar 5′</span><span class="tag tag-neutral">Falar 8′</span><span class="tag tag-neutral">Revisar 6′</span><span class="tag tag-neutral">Fechar 2′</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:26px">
+        <div>
+          <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Revisões previstas</div>
+          <div style="display:flex;align-items:baseline;gap:10px"><span style="font-family:var(--font-heading);font-size:40px;line-height:1">14</span><span style="font-size:14px;color:var(--color-neutral-700)">itens · ~7 minutos</span></div>
+          <div style="display:flex;gap:3px;margin-top:10px">
+            <span style="flex:5;height:6px;background:var(--color-accent)"></span><span style="flex:6;height:6px;background:var(--color-accent-300)"></span><span style="flex:3;height:6px;background:var(--color-neutral-300)"></span>
+          </div>
+          <div style="font-size:12px;color:var(--color-neutral-600);margin-top:6px">5 vencidas · 6 de hoje · 3 novas</div>
+          <button class="btn btn-secondary" style="margin-top:12px;min-height:44px">Revisar primeiro</button>
+        </div>
+        <div style="border-top:1px solid var(--color-divider);padding-top:18px">
+          <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Evidência mais recente</div>
+          <p style="font-style:italic;font-size:16px;line-height:1.5;margin:0 0 8px">“Você explicou um bloqueio e respondeu a duas perguntas de acompanhamento sem consultar o roteiro.”</p>
+          <div style="font-size:12px;color:var(--color-neutral-600)">Ontem · Daily sem roteiro · rubrica v3</div>
+        </div>
+        <div style="border-top:1px solid var(--color-divider);padding-top:18px">
+          <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Fala aguardando você</div>
+          <div style="font-size:15px">1 gravação com feedback ainda não ouvido</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--color-divider);padding-top:16px;display:flex;justify-content:space-between;font-size:13px;color:var(--color-neutral-700)">
+      <span>Meta semanal: 4 de 5 sessões · descanso não apaga conquistas</span><span style="color:var(--color-accent-700)">Encerrar por hoje</span>
+    </div>
+  </main>
+</div></div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Sala de estudo — player + transcrição à esquerda, uma ferramenta por vez à direita</div>
+<div class="dv-card" style="width:1280px;height:820px;display:grid;grid-template-columns:208px 1fr">
+  <aside style="padding:26px 20px;display:flex;flex-direction:column;gap:30px;border-right:1px solid var(--color-divider)">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:19px;letter-spacing:-.02em">FluentQuest</div>
+    <nav style="display:flex;flex-direction:column;gap:2px;font-size:15px">
+      <span style="padding:7px 10px">Hoje</span>
+      <span style="padding:7px 10px;background:var(--color-accent-100);color:var(--color-accent-800);border-radius:2px">Biblioteca</span>
+      <span style="padding:7px 10px">Praticar</span>
+      <span style="padding:7px 10px;display:flex;justify-content:space-between">Revisar <span style="color:var(--color-accent-2-700)">14</span></span>
+      <span style="padding:7px 10px">Jornada</span>
+    </nav>
+    <div style="margin-top:auto;font-size:12px;color:var(--color-neutral-600);line-height:1.5">Trecho 3 de 8<br>Preparado · fonte: legenda do autor</div>
+  </aside>
+  <main style="display:grid;grid-template-columns:1fr 372px;overflow:hidden">
+    <div style="padding:26px 30px 0 34px;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+        <div><div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600)">Biblioteca · YouTube</div>
+        <h4 style="margin:4px 0 0;font-size:19px">Debugging a flaky test in CI</h4></div>
+        <span style="font-size:12px;color:var(--color-neutral-600)">12:40 · canal Testing Rig</span>
+      </div>
+      <div style="position:relative;aspect-ratio:16/9;background:var(--color-neutral-800);display:grid;place-items:center">
+        <div style="width:0;height:0;border-left:26px solid rgba(243,242,242,.85);border-top:16px solid transparent;border-bottom:16px solid transparent"></div>
+        <div style="position:absolute;left:12px;bottom:10px;font-size:11px;color:rgba(243,242,242,.7);letter-spacing:.08em">PLAYER OFICIAL · CONTROLES ORIGINAIS PRESERVADOS</div>
+        <div style="position:absolute;right:12px;top:10px;font-size:11px;color:rgba(243,242,242,.7)">1080p</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin:14px 0 18px">
+        <button class="btn btn-secondary" style="min-height:44px">Repetir trecho</button>
+        <button class="btn btn-secondary" style="min-height:44px">A–B</button>
+        <button class="btn btn-secondary" style="min-height:44px">0,85×</button>
+        <span style="margin-left:auto;font-size:12px;color:var(--color-neutral-600)">04:12 / 12:40</span>
+      </div>
+      <div style="overflow:hidden;display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--color-divider);padding-top:16px">
+        <div style="display:flex;gap:16px;font-size:14.5px;color:var(--color-neutral-600)"><span style="font-variant-numeric:tabular-nums;font-size:12px;padding-top:3px">03:58</span><span>So the test passes locally every single time.</span></div>
+        <div style="display:flex;gap:16px;border-left:3px solid var(--color-accent);padding-left:13px;margin-left:-16px">
+          <span style="font-variant-numeric:tabular-nums;font-size:12px;padding-top:6px;color:var(--color-neutral-600)">04:12</span>
+          <div><div style="font-size:19px;line-height:1.45">It only <span style="background:var(--color-accent-2-100);box-shadow:0 1px 0 var(--color-accent-2-600)">flakes out</span> when the runner is under load.</div>
+          <sc-if value="{{ traducaoOculta }}" hint-placeholder-val="{{ true }}"><div style="font-size:14px;color:var(--color-neutral-600);margin-top:6px;font-style:italic">Tradução: revelar</div></sc-if>
+          <sc-if value="{{ traducaoVisivel }}"><div style="font-size:14px;color:var(--color-accent-700);margin-top:6px;font-style:italic">Só falha quando o runner está sob carga.</div></sc-if></div>
+        </div>
+        <div style="display:flex;gap:16px;font-size:14.5px;color:var(--color-neutral-600)"><span style="font-variant-numeric:tabular-nums;font-size:12px;padding-top:3px">04:19</span><span>Which points at a shared fixture, not at the assertion.</span></div>
+        <div style="display:flex;gap:16px;font-size:14.5px;color:var(--color-neutral-600)"><span style="font-variant-numeric:tabular-nums;font-size:12px;padding-top:3px">04:26</span><span>Let me reproduce it with the worker count pinned to one.</span></div>
+      </div>
+    </div>
+    <div style="border-left:1px solid var(--color-divider);padding:26px 28px;display:flex;flex-direction:column;gap:20px;background:var(--color-neutral-100)">
+      <div class="seg" style="align-self:flex-start">
+        <label class="seg-opt"><input type="radio" name="sala-a" checked>Expressão</label>
+        <label class="seg-opt"><input type="radio" name="sala-a">Tutor</label>
+        <label class="seg-opt"><input type="radio" name="sala-a">Atividade</label>
+      </div>
+      <div>
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent-700)">Expressão selecionada</div>
+        <div style="font-family:var(--font-heading);font-size:28px;margin:8px 0 6px">to flake out</div>
+        <p style="font-size:14.5px;line-height:1.55;color:var(--color-neutral-800)">Falhar de forma intermitente, sem causa aparente. Usado sobretudo para testes e integrações que ora passam, ora quebram.</p>
+        <p style="font-size:14.5px;font-style:italic;line-height:1.5;margin-bottom:6px">“The suite flakes out roughly one run in twenty.”</p>
+        <div style="font-size:12px;color:var(--color-neutral-600)">Fonte: este vídeo, 04:12 · legenda do autor</div>
+      </div>
+      <div style="border-top:1px solid var(--color-divider);padding-top:16px">
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Ação principal</div>
+        <button class="btn btn-primary btn-block" style="min-height:44px">Salvar no baralho e praticar</button>
+        <button class="btn btn-secondary btn-block" style="min-height:44px">Pedir outro exemplo ao tutor</button>
+        <p style="font-size:12px;color:var(--color-neutral-600);margin-top:12px;margin-bottom:0">Nada entra no baralho sem sua confirmação.</p>
+      </div>
+      <div style="margin-top:auto;border-top:1px solid var(--color-divider);padding-top:14px;font-size:12px;color:var(--color-neutral-600);line-height:1.5">Trocar de painel não recria o player — a posição do vídeo é preservada.</div>
+    </div>
+  </main>
+</div></div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Sala de estudo, variação — leitura ao centro, vídeo ancorado (modo imersão)</div>
+<div class="dv-card" style="width:1280px;height:820px;display:grid;grid-template-columns:208px 1fr">
+  <aside style="padding:26px 20px;display:flex;flex-direction:column;gap:30px;border-right:1px solid var(--color-divider)">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:19px;letter-spacing:-.02em">FluentQuest</div>
+    <nav style="display:flex;flex-direction:column;gap:2px;font-size:15px">
+      <span style="padding:7px 10px">Hoje</span>
+      <span style="padding:7px 10px;background:var(--color-accent-100);color:var(--color-accent-800);border-radius:2px">Biblioteca</span>
+      <span style="padding:7px 10px">Praticar</span>
+      <span style="padding:7px 10px">Revisar</span>
+      <span style="padding:7px 10px">Jornada</span>
+    </nav>
+    <div style="margin-top:auto;font-size:12px;color:var(--color-neutral-600);line-height:1.5">Modo imersão<br>o vídeo não pausa a cada palavra</div>
+  </aside>
+  <main style="display:grid;grid-template-columns:1fr 400px;gap:48px;padding:34px 48px;overflow:hidden">
+    <div style="min-width:0">
+      <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);border-bottom:2px solid var(--color-text);padding-bottom:8px;display:flex;justify-content:space-between"><span>Debugging a flaky test in CI</span><span>Trecho 3 de 8</span></div>
+      <div style="display:flex;flex-direction:column;gap:18px;margin-top:26px;font-size:20px;line-height:1.6">
+        <p style="margin:0;color:var(--color-neutral-600)">So the test passes locally every single time.</p>
+        <p style="margin:0;font-size:24px;line-height:1.5">It only <span style="background:var(--color-accent-2-100);box-shadow:0 1px 0 var(--color-accent-2-600)">flakes out</span> when the runner is under load.</p>
+        <p style="margin:0;font-size:15px;font-style:italic;color:var(--color-accent-700)">Só falha quando o runner está sob carga.</p>
+        <p style="margin:0;color:var(--color-neutral-600)">Which points at a shared fixture, not at the assertion.</p>
+        <p style="margin:0;color:var(--color-neutral-600)">Let me reproduce it with the worker count pinned to one.</p>
+        <p style="margin:0;color:var(--color-neutral-400)">I'll pin the seed as well, just to rule that out.</p>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:34px;flex-wrap:wrap">
+        <button class="btn btn-primary" style="min-height:44px">Salvar expressão</button>
+        <button class="btn btn-secondary" style="min-height:44px">Repetir trecho</button>
+        <button class="btn btn-secondary" style="min-height:44px">Perguntar ao tutor</button>
+        <button class="btn btn-secondary" style="min-height:44px">Praticar falando</button>
+      </div>
+      <div style="margin-top:28px;border-top:1px solid var(--color-divider);padding-top:14px;font-size:13px;color:var(--color-neutral-600)">Tradução visível para este trecho · <span style="color:var(--color-accent-700)">ocultar sempre</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div style="position:relative;aspect-ratio:16/9;background:var(--color-neutral-800);display:grid;place-items:center;box-shadow:var(--shadow-md)">
+        <div style="width:0;height:0;border-left:20px solid rgba(243,242,242,.85);border-top:13px solid transparent;border-bottom:13px solid transparent"></div>
+        <div style="position:absolute;left:10px;bottom:8px;font-size:10px;color:rgba(243,242,242,.7);letter-spacing:.08em">PLAYER OFICIAL · 1080p</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-neutral-600)"><span>04:12 / 12:40</span><span>0,85× · legenda do autor</span></div>
+      <div style="margin-top:14px;border-top:1px solid var(--color-divider);padding-top:14px">
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:10px">Nesta sessão</div>
+        <div style="font-size:14px;line-height:1.7">3 expressões salvas<br>1 atividade pronta para o trecho 3<br><span style="color:var(--color-neutral-600)">próximo bloco sendo preparado</span></div>
+      </div>
+    </div>
+  </main>
+</div></div>
+
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Biblioteca — estados de preparo explícitos, incluindo “preparando 3 de 8 trechos”</div>
+<div class="dv-card" style="width:1280px;height:820px;display:grid;grid-template-columns:208px 1fr">
+  <aside style="padding:26px 20px;display:flex;flex-direction:column;gap:30px;border-right:1px solid var(--color-divider)">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:19px;letter-spacing:-.02em">FluentQuest</div>
+    <nav style="display:flex;flex-direction:column;gap:2px;font-size:15px">
+      <span style="padding:7px 10px">Hoje</span>
+      <span style="padding:7px 10px;background:var(--color-accent-100);color:var(--color-accent-800);border-radius:2px">Biblioteca</span>
+      <span style="padding:7px 10px">Praticar</span>
+      <span style="padding:7px 10px">Revisar</span>
+      <span style="padding:7px 10px">Jornada</span>
+    </nav>
+    <div style="margin-top:auto;font-size:12px;color:var(--color-neutral-600);line-height:1.5">4 fontes · 2 prontas<br>1 em preparo · 1 sem transcrição</div>
+  </aside>
+  <main style="padding:34px 44px;display:flex;flex-direction:column;gap:24px;overflow:hidden">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--color-text);padding-bottom:10px">
+      <h2 style="margin:0;font-size:34px">Biblioteca</h2>
+      <div style="display:flex;gap:10px;align-items:center;width:520px">
+        <input class="input" style="min-height:44px" placeholder="Cole uma URL do YouTube ou envie um arquivo autorizado">
+        <button class="btn btn-primary" style="min-height:44px;white-space:nowrap">Adicionar</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column">
+      <div style="display:grid;grid-template-columns:150px 1fr 250px 170px;gap:24px;padding:20px 0;border-bottom:1px solid var(--color-divider);align-items:center">
+        <div style="aspect-ratio:16/9;background:var(--color-neutral-700);position:relative"><span style="position:absolute;right:5px;bottom:4px;font-size:10px;color:rgba(243,242,242,.8)">12:40</span></div>
+        <div><h4 style="margin:0 0 4px">Debugging a flaky test in CI</h4><div style="font-size:13px;color:var(--color-neutral-600)">Testing Rig · legenda do autor · en-US</div><div style="font-size:13px;color:var(--color-neutral-700);margin-top:6px">Última posição 04:12 · 6 expressões salvas</div></div>
+        <div><span class="tag tag-accent">Pronto</span><div style="font-size:12px;color:var(--color-neutral-600);margin-top:8px">8 de 8 trechos · atividades validadas</div></div>
+        <button class="btn btn-primary" style="min-height:44px">Continuar estudo</button>
+      </div>
+      <div style="display:grid;grid-template-columns:150px 1fr 250px 170px;gap:24px;padding:20px 0;border-bottom:1px solid var(--color-divider);align-items:center;background:var(--color-accent-100)">
+        <div style="aspect-ratio:16/9;background:var(--color-neutral-700);position:relative"><span style="position:absolute;right:5px;bottom:4px;font-size:10px;color:rgba(243,242,242,.8)">31:05</span></div>
+        <div><h4 style="margin:0 0 4px">Architecture review: queues vs. cron</h4><div style="font-size:13px;color:var(--color-neutral-600)">Systems Weekly · transcrição por IA · validando</div><div style="font-size:13px;color:var(--color-neutral-700);margin-top:6px">Trecho 4 em análise há 40 s · você pode estudar os prontos</div></div>
+        <div>
+          <span class="tag tag-outline">Preparando 3 de 8 trechos</span>
+          <div style="display:flex;gap:3px;margin-top:10px">
+            <span style="flex:1;height:6px;background:var(--color-accent)"></span><span style="flex:1;height:6px;background:var(--color-accent)"></span><span style="flex:1;height:6px;background:var(--color-accent)"></span><span style="flex:1;height:6px;background:var(--color-accent-300)"></span><span style="flex:1;height:6px;background:var(--color-neutral-300)"></span><span style="flex:1;height:6px;background:var(--color-neutral-300)"></span><span style="flex:1;height:6px;background:var(--color-neutral-300)"></span><span style="flex:1;height:6px;background:var(--color-neutral-300)"></span>
+          </div>
+          <div style="font-size:12px;color:var(--color-neutral-700);margin-top:6px">Parcialmente pronto · custo estimado US$ 0,42</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px"><button class="btn btn-primary" style="min-height:44px">Estudar trecho 1</button><button class="btn btn-ghost" style="font-size:13px">Cancelar preparo</button></div>
+      </div>
+      <div style="display:grid;grid-template-columns:150px 1fr 250px 170px;gap:24px;padding:20px 0;border-bottom:1px solid var(--color-divider);align-items:center">
+        <div style="aspect-ratio:16/9;background:var(--color-neutral-700);position:relative"><span style="position:absolute;right:5px;bottom:4px;font-size:10px;color:rgba(243,242,242,.8)">08:22</span></div>
+        <div><h4 style="margin:0 0 4px">Standup: what I shipped yesterday</h4><div style="font-size:13px;color:var(--color-neutral-600)">Arquivo próprio · áudio autorizado · en-GB</div><div style="font-size:13px;color:var(--color-neutral-700);margin-top:6px">Sem legenda disponível — ASR pendente de autorização de custo</div></div>
+        <div><span class="tag tag-neutral">Sem transcrição</span><div style="font-size:12px;color:var(--color-neutral-600);margin-top:8px">Player disponível · atividades independentes do texto</div></div>
+        <button class="btn btn-secondary" style="min-height:44px">Transcrever</button>
+      </div>
+      <div style="display:grid;grid-template-columns:150px 1fr 250px 170px;gap:24px;padding:20px 0;border-bottom:1px solid var(--color-divider);align-items:center">
+        <div style="aspect-ratio:16/9;background:var(--color-neutral-700);position:relative"><span style="position:absolute;right:5px;bottom:4px;font-size:10px;color:rgba(243,242,242,.8)">17:50</span></div>
+        <div><h4 style="margin:0 0 4px">Negotiating a deadline with your PM</h4><div style="font-size:13px;color:var(--color-neutral-600)">Career Track · legenda do autor · en-US</div><div style="font-size:13px;color:var(--color-neutral-700);margin-top:6px">Adicionado ontem · nenhum trecho preparado ainda</div></div>
+        <div><span class="tag tag-neutral">Na fila</span><div style="font-size:12px;color:var(--color-neutral-600);margin-top:8px">Preparo sob demanda: só o trecho que você abrir</div></div>
+        <button class="btn btn-secondary" style="min-height:44px">Abrir</button>
+      </div>
+    </div>
+    <div style="margin-top:auto;font-size:13px;color:var(--color-neutral-600);border-top:1px solid var(--color-divider);padding-top:14px">Direitos registrados por fonte. Transcrições de terceiros não são exportadas por padrão.</div>
+  </main>
+</div></div>
+
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Praticar — uma tentativa gravada, feedback com um ponto forte e uma correção</div>
+<div class="dv-card" style="width:1280px;height:820px;display:grid;grid-template-columns:208px 1fr">
+  <aside style="padding:26px 20px;display:flex;flex-direction:column;gap:30px;border-right:1px solid var(--color-divider)">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:19px;letter-spacing:-.02em">FluentQuest</div>
+    <nav style="display:flex;flex-direction:column;gap:2px;font-size:15px">
+      <span style="padding:7px 10px">Hoje</span><span style="padding:7px 10px">Biblioteca</span>
+      <span style="padding:7px 10px;background:var(--color-accent-100);color:var(--color-accent-800);border-radius:2px">Praticar</span>
+      <span style="padding:7px 10px">Revisar</span><span style="padding:7px 10px">Jornada</span>
+    </nav>
+    <div style="margin-top:auto;font-size:12px;color:var(--color-neutral-600);line-height:1.5">Gravação apagada em 7 dias<br>salvo se você marcar como amostra</div>
+  </aside>
+  <main style="padding:34px 44px;display:grid;grid-template-columns:1.25fr 1fr;gap:52px;overflow:hidden">
+    <div style="display:flex;flex-direction:column">
+      <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:10px">Cenário · trilha Debugging</div>
+      <h1 style="font-size:40px;margin:0 0 12px;line-height:1.08">Explique o bug<br>em até 90 segundos</h1>
+      <p style="font-size:16.5px;line-height:1.55;max-width:48ch;color:var(--color-neutral-800)">Use o trecho que você acabou de estudar. Diga o que acontece, quando acontece e qual é o seu próximo passo. Sem roteiro na tela.</p>
+      <div style="display:flex;gap:8px;margin:6px 0 26px"><span class="tag tag-neutral">flakes out</span><span class="tag tag-neutral">under load</span><span class="tag tag-neutral">shared fixture</span><span style="font-size:12px;color:var(--color-neutral-600);align-self:center">expressões-alvo, opcionais</span></div>
+      <div style="border-top:1px solid var(--color-divider);padding-top:22px;display:flex;align-items:center;gap:22px">
+        <div style="width:72px;height:72px;border-radius:50%;background:var(--color-accent-2-600);display:grid;place-items:center;box-shadow:var(--shadow-md)"><span style="width:22px;height:22px;background:var(--color-bg);border-radius:3px"></span></div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:flex-end;gap:2px;height:52px">
+            <span style="flex:1;height:22%;background:var(--color-accent-400)"></span><span style="flex:1;height:48%;background:var(--color-accent-400)"></span><span style="flex:1;height:74%;background:var(--color-accent)"></span><span style="flex:1;height:96%;background:var(--color-accent)"></span><span style="flex:1;height:60%;background:var(--color-accent)"></span><span style="flex:1;height:34%;background:var(--color-accent-400)"></span><span style="flex:1;height:82%;background:var(--color-accent)"></span><span style="flex:1;height:52%;background:var(--color-accent)"></span><span style="flex:1;height:26%;background:var(--color-accent-400)"></span><span style="flex:1;height:64%;background:var(--color-accent)"></span><span style="flex:1;height:40%;background:var(--color-accent-400)"></span><span style="flex:1;height:18%;background:var(--color-neutral-300)"></span><span style="flex:1;height:12%;background:var(--color-neutral-300)"></span><span style="flex:1;height:16%;background:var(--color-neutral-300)"></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-neutral-600);margin-top:8px"><span>Gravando · 00:41</span><span>máximo 01:30</span></div>
+        </div>
+        <button class="btn btn-secondary" style="min-height:44px">Parar</button>
+      </div>
+      <div style="margin-top:auto;font-size:13px;color:var(--color-neutral-600);border-top:1px solid var(--color-divider);padding-top:14px">O microfone fecha ao parar. Você ouve antes de enviar.</div>
+    </div>
+    <div style="border-left:1px solid var(--color-divider);padding-left:36px;display:flex;flex-direction:column;gap:20px">
+      <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600)">Feedback da tentativa anterior</div>
+      <div>
+        <div style="font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Ponto forte</div>
+        <p style="font-size:15.5px;line-height:1.55;margin:0">Você abriu com o sintoma e só depois foi para a causa — a ordem certa para um colega que não conhece o teste.</p>
+      </div>
+      <div>
+        <div style="font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-accent-2-700);margin-bottom:6px">Uma correção prioritária</div>
+        <p style="font-size:15.5px;line-height:1.55;margin:0 0 6px">“It <s style="text-decoration-color:var(--color-accent-2-600)">was fail</s> <strong>fails</strong> only when the runner is busy.”</p>
+        <p style="font-size:13.5px;color:var(--color-neutral-700);margin:0">Presente simples para comportamento recorrente. Uma correção por vez.</p>
+      </div>
+      <div style="border-top:1px solid var(--color-divider);padding-top:16px">
+        <div style="font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Nova tentativa curta</div>
+        <p style="font-size:15.5px;line-height:1.5;margin:0 0 12px">Responda em 20 segundos: <em>“What would you try next?”</em></p>
+        <button class="btn btn-primary btn-block" style="min-height:44px">Gravar resposta</button>
+      </div>
+      <div style="margin-top:auto;border-top:1px solid var(--color-divider);padding-top:14px">
+        <div style="font-size:13px;line-height:1.6;color:var(--color-neutral-700)">Transcrição automática · conteúdo e gramática avaliados.<br><span style="color:var(--color-neutral-600)">Pronúncia: não avaliada nesta versão.</span></div>
+      </div>
+    </div>
+  </main>
+</div></div>
+
+<div class="dv-opt" id="1f"><div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Revisar — um item por vez, recuperar antes de revelar</div>
+<div class="dv-card" style="width:1280px;height:820px;display:flex;flex-direction:column;background:var(--color-bg)">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 44px;border-bottom:1px solid var(--color-divider)">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:17px">Revisar</div>
+    <div style="flex:1;margin:0 40px;display:flex;gap:3px">
+      <span style="flex:6;height:4px;background:var(--color-accent)"></span><span style="flex:8;height:4px;background:var(--color-neutral-300)"></span>
+    </div>
+    <div style="font-size:13px;color:var(--color-neutral-600)">6 de 14 · ~4 min restantes · <span style="color:var(--color-accent-700)">encerrar</span></div>
+  </div>
+  <div style="flex:1;display:grid;place-items:center;padding:0 44px">
+    <div style="width:720px;text-align:center">
+      <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:26px">Produção · diga em voz alta antes de revelar</div>
+      <p style="font-size:34px;line-height:1.35;margin:0 0 18px">The suite ______ about once in twenty runs.</p>
+      <p style="font-size:17px;color:var(--color-neutral-700);margin:0 0 34px;font-style:italic">falha de forma intermitente</p>
+      <button class="btn btn-primary" style="min-height:48px;font-size:16px;padding:12px 30px">Revelar resposta</button>
+      <div style="margin-top:34px;font-size:13px;color:var(--color-neutral-600);line-height:1.6">Do vídeo <em>Debugging a flaky test in CI</em>, 04:12 · visto pela 4ª vez<br>Reconhecimento em dia · produção ainda em aprendizado</div>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--color-divider);padding:22px 44px;display:flex;gap:14px;justify-content:center;align-items:center">
+    <button class="btn btn-secondary" style="min-height:48px;min-width:140px;flex-direction:column;gap:2px"><span>Esqueci</span><span style="font-size:11px;color:var(--color-neutral-600);font-weight:400">de novo hoje</span></button>
+    <button class="btn btn-secondary" style="min-height:48px;min-width:140px;flex-direction:column;gap:2px"><span>Difícil</span><span style="font-size:11px;color:var(--color-neutral-600);font-weight:400">em 2 dias</span></button>
+    <button class="btn btn-secondary" style="min-height:48px;min-width:140px;flex-direction:column;gap:2px"><span>Bom</span><span style="font-size:11px;color:var(--color-neutral-600);font-weight:400">em 9 dias</span></button>
+    <button class="btn btn-secondary" style="min-height:48px;min-width:140px;flex-direction:column;gap:2px"><span>Fácil</span><span style="font-size:11px;color:var(--color-neutral-600);font-weight:400">em 21 dias</span></button>
+    <span style="margin-left:20px;font-size:12px;color:var(--color-neutral-600);max-width:200px;line-height:1.5">Tocou errado? Corrigir última resposta.</span>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1g"><div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Jornada — o personagem ao lado da evidência que o sustenta</div>
+<div class="dv-card" style="width:1280px;height:820px;display:grid;grid-template-columns:208px 1fr">
+  <aside style="padding:26px 20px;display:flex;flex-direction:column;gap:30px;border-right:1px solid var(--color-divider)">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:19px;letter-spacing:-.02em">FluentQuest</div>
+    <nav style="display:flex;flex-direction:column;gap:2px;font-size:15px">
+      <span style="padding:7px 10px">Hoje</span><span style="padding:7px 10px">Biblioteca</span><span style="padding:7px 10px">Praticar</span><span style="padding:7px 10px">Revisar</span>
+      <span style="padding:7px 10px;background:var(--color-accent-100);color:var(--color-accent-800);border-radius:2px">Jornada</span>
+    </nav>
+    <div style="margin-top:auto;font-size:12px;color:var(--color-neutral-600);line-height:1.5">XP mede participação.<br>Evidência mede domínio.<br>Não são a mesma coisa.</div>
+  </aside>
+  <main style="padding:34px 44px;display:flex;flex-direction:column;gap:26px;overflow:hidden">
+    <div style="display:flex;align-items:flex-start;gap:40px;border-bottom:2px solid var(--color-text);padding-bottom:24px">
+      <div style="display:flex;align-items:center;gap:22px">
+        <div class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:92px"><span class="paper">8</span><span class="plate plate-c" aria-hidden="true">8</span><span class="plate plate-m" aria-hidden="true">8</span><span class="plate plate-y" aria-hidden="true">8</span></div>
+        <div>
+          <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600)">Nível</div>
+          <h2 style="margin:4px 0 6px;font-size:30px">Comunicador em construção</h2>
+          <div style="width:320px;height:5px;background:var(--color-neutral-300)"><div style="width:62%;height:100%;background:var(--color-accent)"></div></div>
+          <div style="font-size:12.5px;color:var(--color-neutral-600);margin-top:6px">1.240 / 2.010 XP · nenhum XP vem de assistir vídeo</div>
+        </div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600)">Desafio semanal</div>
+        <div style="font-family:var(--font-heading);font-size:19px;margin:6px 0 8px">Defender uma escolha técnica em 2 min</div>
+        <button class="btn btn-primary" style="min-height:44px">Começar desafio · 30 XP</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1.15fr;gap:52px;overflow:hidden">
+      <div>
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:16px">Habilidades</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div><div style="display:flex;justify-content:space-between;font-size:15px"><span>Escuta</span><span style="color:var(--color-neutral-600);font-size:13px">B1 · 22 evidências</span></div><div style="height:5px;background:var(--color-neutral-300);margin-top:5px"><div style="width:72%;height:100%;background:var(--color-accent)"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:15px"><span>Vocabulário ativo</span><span style="color:var(--color-neutral-600);font-size:13px">B1 · 41 evidências</span></div><div style="height:5px;background:var(--color-neutral-300);margin-top:5px"><div style="width:64%;height:100%;background:var(--color-accent)"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:15px"><span>Construção de frases</span><span style="color:var(--color-neutral-600);font-size:13px">A2 · 18 evidências</span></div><div style="height:5px;background:var(--color-neutral-300);margin-top:5px"><div style="width:44%;height:100%;background:var(--color-accent)"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:15px"><span>Expressão oral</span><span style="color:var(--color-neutral-600);font-size:13px">9 amostras</span></div><div style="height:5px;background:var(--color-neutral-300);margin-top:5px"><div style="width:33%;height:100%;background:var(--color-accent)"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:15px"><span>Comunicação profissional</span><span style="color:var(--color-neutral-600);font-size:13px">evidência insuficiente</span></div><div style="height:5px;background:var(--color-neutral-300);margin-top:5px"><div style="width:12%;height:100%;background:var(--color-neutral-500)"></div></div></div>
+        </div>
+        <div style="margin-top:26px;border-top:1px solid var(--color-divider);padding-top:16px">
+          <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:10px">Capítulos</div>
+          <div style="font-size:15px;line-height:1.9">
+            <div>Primeiro contato <span style="color:var(--color-accent-700);font-size:13px">concluído</span></div>
+            <div>Daily sem roteiro <span style="color:var(--color-accent-700);font-size:13px">em curso · 3 de 5</span></div>
+            <div style="color:var(--color-neutral-600)">Code review · Decisões de arquitetura · Conversa sob pressão</div>
+          </div>
+        </div>
+      </div>
+      <div style="border-left:1px solid var(--color-divider);padding-left:40px;overflow:hidden">
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:16px">Evidências recentes</div>
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div><p style="margin:0 0 4px;font-size:16.5px;line-height:1.5">Explicou um bloqueio e respondeu a duas perguntas de acompanhamento sem consultar o roteiro.</p><div style="font-size:12px;color:var(--color-neutral-600)">13 set · fala livre · autonomia alta · rubrica v3</div></div>
+          <div><p style="margin:0 0 4px;font-size:16.5px;line-height:1.5">Usou <em>“to flake out”</em> em contexto novo, sem dica na tela.</p><div style="font-size:12px;color:var(--color-neutral-600)">12 set · produção · sem ajuda</div></div>
+          <div><p style="margin:0 0 4px;font-size:16.5px;line-height:1.5">Discordou de uma sugestão de code review e justificou a alternativa.</p><div style="font-size:12px;color:var(--color-neutral-600)">10 set · simulação · uma dica usada</div></div>
+        </div>
+        <div style="margin-top:24px;border-top:1px solid var(--color-divider);padding-top:16px">
+          <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Próximo passo sugerido</div>
+          <p style="margin:0 0 12px;font-size:16px;line-height:1.5">Repetir a tarefa de <em>daily</em> com um bug diferente, para verificar transferência.</p>
+          <button class="btn btn-secondary" style="min-height:44px">Escolher próximo desafio</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div></div>
+
+<div class="dv-opt" id="1h"><div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>Onboarding — diagnóstico honesto, microfone opcional</div>
+<div class="dv-card" style="width:1280px;height:820px;display:grid;grid-template-columns:1fr 470px">
+  <div style="padding:44px 56px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;gap:26px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600);border-bottom:2px solid var(--color-text);padding-bottom:10px">
+      <span style="color:var(--color-neutral-500)">1 Interesses</span><span style="color:var(--color-neutral-500)">2 Objetivo</span><span style="color:var(--color-text)">3 Escuta e fala</span><span>4 Resultado</span>
+    </div>
+    <h1 style="font-size:42px;margin:34px 0 12px;line-height:1.08">Duas tarefas curtas<br>antes de começar</h1>
+    <p style="font-size:17px;line-height:1.55;max-width:50ch;color:var(--color-neutral-800);margin-bottom:30px">Nada disso é prova. Serve para escolher a dificuldade inicial — e você pode discordar dela a qualquer momento.</p>
+    <div style="display:flex;flex-direction:column;gap:26px">
+      <div style="display:flex;gap:22px;align-items:flex-start">
+        <div style="font-family:var(--font-heading);font-size:22px;color:var(--color-accent);width:24px">1</div>
+        <div style="flex:1">
+          <h4 style="margin:0 0 6px">Ouça 40 segundos e responda</h4>
+          <p style="font-size:14.5px;color:var(--color-neutral-700);margin:0 0 10px">Um trecho de daily com sotaque irlandês. Duas perguntas de compreensão.</p>
+          <div style="display:flex;gap:10px;align-items:center"><span class="tag tag-accent">Concluído</span><span style="font-size:13px;color:var(--color-neutral-600)">2 de 2 corretas</span></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:22px;align-items:flex-start;border-top:1px solid var(--color-divider);padding-top:26px">
+        <div style="font-family:var(--font-heading);font-size:22px;color:var(--color-accent);width:24px">2</div>
+        <div style="flex:1">
+          <h4 style="margin:0 0 6px">Apresente-se em 60 segundos</h4>
+          <p style="font-size:14.5px;color:var(--color-neutral-700);margin:0 0 14px">Quem é você, no que trabalha, o que quer conseguir dizer em inglês daqui a três meses.</p>
+          <div style="display:flex;gap:12px;align-items:center">
+            <button class="btn btn-primary" style="min-height:44px">Permitir microfone e gravar</button>
+            <button class="btn btn-ghost" style="min-height:44px">Pular por enquanto</button>
+          </div>
+          <p style="font-size:13px;color:var(--color-neutral-600);margin:12px 0 0">Sem amostra de áudio, sua fala aparece como <em>ainda não avaliada</em> — e o app continua funcionando.</p>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:auto;border-top:1px solid var(--color-divider);padding-top:16px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:var(--color-neutral-600)">Explicações em português, migrando para inglês quando você quiser.</span>
+      <button class="btn btn-secondary" style="min-height:44px">Continuar</button>
+    </div>
+  </div>
+  <div style="background:var(--color-neutral-100);border-left:1px solid var(--color-divider);padding:44px 40px;display:flex;flex-direction:column;gap:24px">
+    <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600)">Estimativa inicial</div>
+    <div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:17px">Compreensão</span><span style="font-family:var(--font-heading);font-size:30px">B1</span></div>
+      <div style="font-size:12.5px;color:var(--color-neutral-600);margin-top:4px">2 tarefas de escuta · 14 set · avaliador v3</div>
+    </div>
+    <div style="border-top:1px solid var(--color-divider);padding-top:18px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:17px">Fala</span><span style="font-family:var(--font-heading);font-size:17px;color:var(--color-neutral-600)">sem evidência</span></div>
+      <div style="font-size:12.5px;color:var(--color-neutral-600);margin-top:4px">Nenhuma amostra gravada até agora</div>
+    </div>
+    <div style="border-top:1px solid var(--color-divider);padding-top:18px">
+      <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:10px">Seus interesses</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px"><span class="tag tag-neutral">Backend</span><span class="tag tag-neutral">Code review</span><span class="tag tag-neutral">Entrevistas</span><span class="tag tag-neutral">Ciclismo</span><span class="tag tag-neutral">Ficção científica</span></div>
+      <div style="font-size:12.5px;color:var(--color-neutral-600);margin-top:10px">60% situações profissionais · 40% interesses pessoais</div>
+    </div>
+    <div style="margin-top:auto;font-size:13px;line-height:1.6;color:var(--color-neutral-700);border-top:1px solid var(--color-divider);padding-top:16px">Isto é uma estimativa de dificuldade inicial, não um certificado. Ela é revista a cada nova amostra.</div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1i"><div class="dv-olabel"><a class="dv-oid" href="#1i">1i</a>Custo e uso — previsto, reservado e confirmado, separados</div>
+<div class="dv-card" style="width:1280px;height:820px;display:grid;grid-template-columns:208px 1fr">
+  <aside style="padding:26px 20px;display:flex;flex-direction:column;gap:30px;border-right:1px solid var(--color-divider)">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:19px;letter-spacing:-.02em">FluentQuest</div>
+    <nav style="display:flex;flex-direction:column;gap:2px;font-size:15px">
+      <span style="padding:7px 10px">Hoje</span><span style="padding:7px 10px">Biblioteca</span><span style="padding:7px 10px">Praticar</span><span style="padding:7px 10px">Revisar</span><span style="padding:7px 10px">Jornada</span>
+    </nav>
+    <div style="margin-top:auto;font-size:12px;color:var(--color-neutral-600);line-height:1.5">Perfil ›<br><span style="color:var(--color-accent-800)">Custo e uso</span></div>
+  </aside>
+  <main style="padding:34px 44px;display:flex;flex-direction:column;gap:26px;overflow:hidden">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--color-text);padding-bottom:10px">
+      <h2 style="margin:0;font-size:34px">Custo e uso · setembro</h2>
+      <span style="font-size:13px;color:var(--color-neutral-600)">Estimativa local, conciliada com a fatura do provedor</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:36px">
+      <div><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600)">Confirmado</div><div style="font-family:var(--font-heading);font-size:34px;margin-top:4px">US$ 16,92</div></div>
+      <div><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600)">Reservado agora</div><div style="font-family:var(--font-heading);font-size:34px;margin-top:4px">US$ 1,48</div></div>
+      <div><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600)">Previsto no mês</div><div style="font-family:var(--font-heading);font-size:34px;margin-top:4px">US$ 24,10</div></div>
+      <div><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600)">Limite de bloqueio</div><div style="font-family:var(--font-heading);font-size:34px;margin-top:4px;color:var(--color-accent-2-700)">US$ 40,00</div></div>
+    </div>
+    <div>
+      <div style="display:flex;height:16px">
+        <div style="width:42%;background:var(--color-accent)"></div><div style="width:4%;background:var(--color-accent-300)"></div><div style="width:14%;background:var(--color-neutral-300)"></div><div style="flex:1;background:var(--color-neutral-200)"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-neutral-600);margin-top:8px"><span>Alerta interno em US$ 25,00</span><span>Bloqueio de novas chamadas em US$ 40,00 — biblioteca e revisões continuam</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:44px;overflow:hidden">
+      <div>
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:6px">Por finalidade</div>
+        <table class="table">
+          <thead><tr><th>Finalidade</th><th>Modelo</th><th style="text-align:right">Entrada</th><th style="text-align:right">Saída</th><th style="text-align:right">Custo</th></tr></thead>
+          <tbody>
+            <tr><td>Preparação de trechos</td><td>3.5 Flash-Lite</td><td style="text-align:right">18,4 M</td><td style="text-align:right">1,9 M</td><td style="text-align:right">US$ 10,27</td></tr>
+            <tr><td>Tutor contextual</td><td>3.5 Flash-Lite</td><td style="text-align:right">2,1 M</td><td style="text-align:right">0,5 M</td><td style="text-align:right">US$ 1,88</td></tr>
+            <tr><td>Análise visual alta</td><td>3.8 Flash</td><td style="text-align:right">1,2 M</td><td style="text-align:right">0,1 M</td><td style="text-align:right">US$ 1,28</td></tr>
+            <tr><td>Transcrição autorizada</td><td>3.5 Transcribe</td><td style="text-align:right">—</td><td style="text-align:right">—</td><td style="text-align:right">US$ 2,15</td></tr>
+            <tr><td>Fala · feedback</td><td>3.5 Flash-Lite</td><td style="text-align:right">0,4 M</td><td style="text-align:right">0,2 M</td><td style="text-align:right">US$ 1,34</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="border-left:1px solid var(--color-divider);padding-left:36px;display:flex;flex-direction:column;gap:18px">
+        <div>
+          <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Economia que já funcionou</div>
+          <div style="font-size:15px;line-height:1.7">Cache de resultado: 63% das leituras<br>Trechos reprocessados: 2<br>Texto antes de vídeo: 81% das chamadas</div>
+        </div>
+        <div style="border-top:1px solid var(--color-divider);padding-top:16px">
+          <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Ajustes</div>
+          <div class="field" style="margin-bottom:12px"><label>Limite mensal</label><input class="input" value="US$ 40,00" style="min-height:44px"></div>
+          <label class="radio" style="margin-bottom:8px"><input type="radio" name="modelo" checked><span class="dot"></span>Lite primeiro, promover por falha</label>
+          <label class="radio"><input type="radio" name="modelo"><span class="dot"></span>Flash sempre (custo maior)</label>
+        </div>
+        <div style="margin-top:auto;font-size:12.5px;color:var(--color-neutral-600);line-height:1.6;border-top:1px solid var(--color-divider);padding-top:14px">Preços com data de vigência. A tarifa do Flash muda em 01/01/2027 — o orçamento será recalculado.</div>
+      </div>
+    </div>
+  </main>
+</div></div>
+
+<div class="dv-opt" id="1j"><div class="dv-olabel"><a class="dv-oid" href="#1j">1j</a>Hoje, variação — abertura de jornal: a sessão como manchete única</div>
+<div class="dv-card" style="width:1280px;height:820px;display:flex;flex-direction:column;padding:38px 56px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid var(--color-text);padding-bottom:6px">
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:26px;letter-spacing:-.02em">FluentQuest</div>
+    <nav style="display:flex;gap:22px;font-size:14px;color:var(--color-neutral-700)"><span style="color:var(--color-text);border-bottom:2px solid var(--color-accent)">Hoje</span><span>Biblioteca</span><span>Praticar</span><span>Revisar · 14</span><span>Jornada</span></nav>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);border-bottom:1px solid var(--color-text);padding:6px 0 7px">
+    <span>Edição de quinta-feira, 14 de setembro de 2026</span><span>Sequência: 4 sessões nesta semana</span><span>Uso do mês US$ 18,40</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:44px;flex:1;padding-top:30px;overflow:hidden">
+    <div style="border-right:1px solid var(--color-divider);padding-right:44px">
+      <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:12px">A sessão de hoje</div>
+      <h1 class="cmyk-head" style="font-size:56px;line-height:1.02;margin:0 0 18px"><span class="paper">Explicar um bloqueio sem roteiro</span><span class="plate plate-c" aria-hidden="true">Explicar um bloqueio sem roteiro</span><span class="plate plate-m" aria-hidden="true">Explicar um bloqueio sem roteiro</span><span class="plate plate-y" aria-hidden="true">Explicar um bloqueio sem roteiro</span></h1>
+      <p style="font-size:17px;line-height:1.55;column-count:2;column-gap:32px;color:var(--color-neutral-800)">Quatro minutos de <em>Debugging a flaky test in CI</em>, três expressões recuperadas de memória e uma atualização gravada de 90 segundos. No fim, o tutor devolve um ponto forte e uma correção — e o que você praticou vira uma revisão marcada para daqui a nove dias.</p>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:24px">
+        <button class="btn btn-primary" style="font-size:16px;padding:13px 26px;min-height:48px">Continuar minha sessão</button>
+        <span style="font-size:13px;color:var(--color-neutral-600)">12 min restantes · trocar missão</span>
+      </div>
+      <div style="margin-top:32px;border-top:1px solid var(--color-divider);padding-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="tag tag-accent">Entender 4′</span><span class="tag tag-neutral">Recuperar 5′</span><span class="tag tag-neutral">Falar 8′</span><span class="tag tag-neutral">Revisar 6′</span><span class="tag tag-neutral">Fechar 2′</span>
+      </div>
+    </div>
+    <div style="border-right:1px solid var(--color-divider);padding-right:44px;display:flex;flex-direction:column;gap:22px">
+      <div>
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Fila de revisão</div>
+        <div class="cmyk-num" style="font-family:var(--font-heading);font-weight:600;font-size:62px"><span class="paper">14</span><span class="plate plate-c" aria-hidden="true">14</span><span class="plate plate-m" aria-hidden="true">14</span><span class="plate plate-y" aria-hidden="true">14</span></div>
+        <div style="font-size:14px;color:var(--color-neutral-700);margin-top:10px">itens · cerca de 7 minutos<br>5 vencidas, 6 de hoje, 3 novas</div>
+        <button class="btn btn-secondary" style="min-height:44px;margin-top:12px">Revisar primeiro</button>
+      </div>
+      <div style="border-top:1px solid var(--color-divider);padding-top:16px">
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Em preparo</div>
+        <p style="font-size:15px;line-height:1.5;margin:0">Architecture review: queues vs. cron</p>
+        <div style="font-size:13px;color:var(--color-accent-700);margin-top:4px">Preparando 3 de 8 trechos</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:22px">
+      <div>
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">O que mudou em você</div>
+        <p style="font-style:italic;font-size:17px;line-height:1.5;margin:0 0 6px">“Você explicou um bloqueio e respondeu a duas perguntas sem consultar o roteiro.”</p>
+        <div style="font-size:12px;color:var(--color-neutral-600)">Ontem · Daily sem roteiro</div>
+      </div>
+      <div style="border-top:1px solid var(--color-divider);padding-top:16px">
+        <div style="font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Aguardando você</div>
+        <div style="font-size:15px;line-height:1.6">1 feedback de fala não ouvido<br>1 expressão sugerida para aprovar</div>
+      </div>
+      <div style="margin-top:auto;border-top:1px solid var(--color-divider);padding-top:14px;font-size:13px;color:var(--color-neutral-600)">Meta semanal ajustável. Descanso não remove conquistas.</div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+<p class="dv-next">Peça em seguida: “quero <a class="dv-oid" href="#1c">1c</a> com o tutor sempre visível” · “mostre <a class="dv-oid" href="#1b">1b</a> com orçamento atingido e microfone negado” · “uma variação de <a class="dv-oid" href="#1f">1f</a> com áudio em vez de texto”</p>
+<sc-if value="{{ mostrarNotas }}"><p class="note">Notas de implementação: a navegação preserva vídeo, trecho, aba e atividade (FQ-07); trocar o painel lateral não remonta o player. Estados de preparo vêm do job (<em>partial_ready</em>), nunca de um spinner indefinido. Alvos de toque a 44 px nas ações principais. Nenhum XP é concedido por reprodução.</p></sc-if>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;traducaoVisivel&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;mostrarNotas&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const visivel = this.props.traducaoVisivel ?? false;
+    return {
+      traducaoVisivel: visivel,
+      traducaoOculta: !visivel,
+      mostrarNotas: this.props.mostrarNotas ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>

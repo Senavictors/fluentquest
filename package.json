@@ -1,0 +1,52 @@
+{
+  "name": "fluentquest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n web,worker \"npm:dev:web\" \"npm:dev:worker\"",
+    "dev:web": "next dev --hostname 127.0.0.1 --port 3215",
+    "dev:worker": "tsx watch --env-file=.env.local src/worker.ts",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 3215",
+    "worker": "tsx --env-file=.env.local src/worker.ts",
+    "setup": "tsx scripts/setup.ts",
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
+    "owner:create": "tsx --env-file=.env.local scripts/owner.ts",
+    "backup": "tsx --env-file=.env.local scripts/backup.ts",
+    "restore": "tsx --env-file=.env.local scripts/restore.ts",
+    "test": "vitest run",
+    "test:integration": "tsx --env-file=.env.local scripts/integration.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/source-serif-4": "5.3.0",
+    "@google/genai": "2.22.0",
+    "better-auth": "1.7.4",
+    "drizzle-orm": "0.45.2",
+    "ffprobe-static": "3.1.0",
+    "file-type": "22.1.0",
+    "lucide-react": "1.46.0",
+    "music-metadata": "11.15.0",
+    "next": "16.3.5",
+    "pg": "8.23.0",
+    "pg-boss": "12.32.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "ts-fsrs": "5.4.2",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.5.1",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "concurrently": "10.0.5",
+    "prettier": "3.9.6",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}

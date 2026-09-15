@@ -1,0 +1,46 @@
+# API local — v1
+
+Sessão Better Auth em cookie HttpOnly. Toda consulta de domínio verifica proprietário. Mutação exige Origin igual a `BETTER_AUTH_URL`. Erros retornam `{code,message,retryable,requestId}`. Dados externos e respostas de IA são renderizados como texto, sem HTML executável.
+
+| Operação | Contrato |
+| --- | --- |
+| `GET /api/bootstrap` | Perfil, fontes, sessão ativa, revisões, jornada, orçamento e estado das integrações. |
+| `PATCH /api/profile` | Preferências, limites e atalhos. |
+| `POST /api/diagnostic` | Questão inicial de leitura; sem estimativa CEFR. |
+| `POST /api/example` | Adiciona o pacote autoral de exemplo uma vez por proprietário. |
+| `POST /api/sources` | URL ou texto/legenda, autor, idioma, direitos e consentimento. 202 com sourceId e jobId. |
+| `POST /api/media` | Upload bruto de mídia própria; título, autor e direitos na query. Até 25 MB e 30 min. |
+| `GET /api/sources/:id` | Fonte, primeiro lote de segmentos, atividades sem resposta esperada e estado dos jobs. |
+| `GET /api/sources/:id/segments?cursor=N` | Até 100 segmentos a partir do ordinal. |
+| `POST /api/sources/:id/segments` | Acrescenta legenda autorizada em nova revisão. |
+| `PATCH /api/sources/:id` | Posição em milissegundos, salva de forma espaçada. |
+| `GET /api/sources/:id/media` | Mídia privada com Range. |
+| `POST /api/sources/:id/prepare` | Cria job; exige IA habilitada. |
+| `DELETE /api/sources/:id` | Remove fonte e derivados; histórico pessoal permitido permanece. |
+| `GET /api/jobs/:id/events` | SSE com IDs persistidos e Last-Event-ID; reconexão com estado atual. |
+| `DELETE /api/jobs/:id` | Cancela preparo. Uma inferência já enviada pode ser cobrada. |
+| `POST /api/sessions` | Inicia/retoma a única sessão ativa. |
+| `PATCH /api/sessions/:id` | Etapa, contexto ou conclusão. |
+| `POST /api/cards` | Expressão, sentido, exemplo, modo e proveniência confirmados pelo aluno. |
+| `GET /api/reviews` | Fila devida, total de cartões e próxima revisão. |
+| `POST /api/reviews/:id/answer` | Nota 1–4 e versão otimista; FSRS e XP atômicos. |
+| `POST /api/reviews/:eventId/undo` | Desfaz a última revisão do cartão, com evento compensatório de XP. |
+| `POST /api/attempts` | Tentativa escrita/oral, ajuda, origem, gravação e reflexão de nova tentativa. |
+| `POST /api/challenges/weekly` | Tentativa gravada do cenário semanal e reflexão; recompensa única por semana. |
+| `POST /api/recordings/upload-intent` | Consentimento, tipo, tamanho, duração, retenção; devolve URL assinada por cinco minutos. |
+| `PUT /api/recordings/upload?token=…` | Arquivo bruto validado, dono da sessão e limite medido de 90s. |
+| `GET /api/recordings` | Histórico de gravações e retenção, sem caminho interno. |
+| `GET /api/recordings/:id/audio` | Áudio autenticado, com suporte a Range. |
+| `PATCH /api/recordings/:id` | Preservar amostra ou retornar à expiração de sete dias. |
+| `DELETE /api/recordings/:id` | Exclui objeto privado e registro. |
+| `POST /api/recordings/:id/assess` | Transcrição e feedback; bloqueado sem IA. |
+| `POST /api/lessons/:id/tutor` | Pergunta contextual, retorno SSE. |
+| `POST /api/segments/:id/translate` | Tradução editorial/cache ou nova chamada limitada. |
+| `GET /api/progress` | XP e evidências de prática, sem certificação. |
+| `GET /api/usage` | Uso estimado, reservas e limites. |
+| `GET /api/account/export` | JSON dos dados pessoais, sem segredos ou transcrição integral de terceiros. |
+| `DELETE /api/account` | Confirmação EXCLUIR, revogação de sessão e exclusão assíncrona com tombstone. |
+
+Operações de criação de fonte, exemplo, cartão, tentativa, revisão, correção e desafio exigem `Idempotency-Key`. Reutilizar a chave com corpo diferente retorna 409. Respostas concorrentes com versão antiga também retornam 409.
+
+O cliente nunca decide XP, preço, dono ou permissão. Tempos de legenda fornecida são aproximados; texto sem timestamps nunca ganha sincronização inventada.
