@@ -12,7 +12,7 @@ Repositório Git inicializado no bootstrap desta arquitetura (branch `main`), co
 
 ## Iniciativas ativas
 
-Nenhuma task ativa. O bootstrap da arquitetura de agentes foi concluído em 2026-09-14; o trabalho seguinte ainda não foi planejado via `bootstrap-plan`.
+Nenhuma task ativa. Sete tasks planejadas em `.agents/tasks/backlog/` (TASK-001 a TASK-007), derivadas de ADR-001 — ativação da camada de IA em três fases. A ordem é obrigatória: Fase A (TASK-001, TASK-002) → Fase B (TASK-003, TASK-004, TASK-005) → Fase C (TASK-006, TASK-007). Nenhuma chamada paga foi feita ainda; TASK-001 é a primeira.
 
 ## Arquitetura vigente
 
@@ -36,7 +36,7 @@ Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`
 
 ## Decisões recentes
 
-Nenhum ADR registrado ainda — ver `.agents/decisions/`. As decisões de produto anteriores ao bootstrap estão em `PRODUCT.md` e `docs/INTEGRACOES.md`.
+**ADR-001** (2026-09-14, `accepted`) — ativação da camada de IA em três fases, com Gemini no tier gratuito e teto de US$ 10/mês. Decidiu também habilitar transcrição de vídeo por URL (o provedor processa; o servidor não baixa mídia) e adicionar a OpenAI como segundo provedor depois de generalizar a abstração de preço. Duas consequências que valem para qualquer sessão futura: no tier gratuito **não há fatura**, então o teto vira freio de uso e não de gasto; e o conteúdo enviado pode ser usado pelo provedor para treino — risco aceito explicitamente pelo proprietário. Índice em `.agents/decisions/README.md`. As decisões de produto anteriores ao bootstrap estão em `PRODUCT.md` e `docs/INTEGRACOES.md`.
 
 ## Riscos atuais
 

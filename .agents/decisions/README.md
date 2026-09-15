@@ -5,6 +5,7 @@ Mantido automaticamente por `bootstrap-audit` a cada execução — não edite e
 | ID | Título | Status | Data | Arquivo |
 |---|---|---|---|---|
 <!-- bootstrap-audit preenche uma linha por arquivo em .agents/decisions/*.md, lendo o frontmatter (id, title, status, date). Não remova este comentário — é o marcador de onde a regeneração insere as linhas. -->
+| ADR-001 | Ativação da camada de IA em três fases, com Gemini no tier gratuito | accepted | 2026-09-14 | [ADR-001-ativacao-camada-ia.md](ADR-001-ativacao-camada-ia.md) |
 
 ## Status possíveis
 
