@@ -1,11 +1,11 @@
 ---
 id: TASK-003
 title: Persistência e domínio da ingestão por URL de vídeo
-status: backlog
+status: completed
 type: feature
 owner: dados-persistencia
 created_at: 2026-09-14
-updated_at: 2026-09-14
+updated_at: 2026-09-15
 affected_modules: [migrations/003_video_transcription.sql, src/server/schema.ts, src/domain/content.ts, src/server/api.ts, docs/API.md]
 related_use_cases: [ingestão de fonte do YouTube com transcrição]
 related_adrs: [ADR-001]
@@ -47,12 +47,12 @@ Existe um `origin` novo para transcrição por provedor; existe um `jobs.kind` n
 
 ## Critérios de aceitação
 
-- [ ] CA-01: `migrations/003_*.sql` aplicada transacionalmente por `npm run db:migrate`, e `src/server/schema.ts` atualizado junto.
-- [ ] CA-02: Novo valor de `origin` distingue transcrição por provedor de legenda do proprietário.
-- [ ] CA-03: Limite de duração implementado em `src/domain/content.ts` com teste unitário próprio.
-- [ ] CA-04: `POST /api/sources` aceita a intenção de transcrever e recusa combinações de direitos inválidas, com `AppError` e mensagem em pt-BR.
-- [ ] CA-05: `docs/API.md` atualizado — contrato público não muda em silêncio.
-- [ ] CA-06: `npm run typecheck` limpo; `npm test` passa com o teste novo; `npm run test:integration` verde.
+- [x] CA-01: `migrations/003_*.sql` aplicada transacionalmente por `npm run db:migrate`, e `src/server/schema.ts` atualizado junto.
+- [x] CA-02: Novo valor de `origin` distingue transcrição por provedor de legenda do proprietário.
+- [x] CA-03: Limite de duração implementado em `src/domain/content.ts` com teste unitário próprio.
+- [x] CA-04: `POST /api/sources` aceita a intenção de transcrever e recusa combinações de direitos inválidas, com `AppError` e mensagem em pt-BR.
+- [x] CA-05: `docs/API.md` atualizado — contrato público não muda em silêncio.
+- [x] CA-06: `npm run typecheck` limpo; `npm test` passa com o teste novo; `npm run test:integration` verde.
 
 ## Impacto técnico
 
@@ -73,18 +73,18 @@ O campo `rights` passa a carregar mais peso: é o que separa uso pessoal legíti
 
 ## Plano de implementação
 
-- [ ] Etapa 1: Ler `001_initial.sql` e `002_learning_flow.sql` e mapear como `origin`, `status` e `jobs.kind` estão restritos hoje.
-- [ ] Etapa 2: Escrever a migração 003.
-- [ ] Etapa 3: Atualizar `src/server/schema.ts`.
-- [ ] Etapa 4: Adicionar a regra de duração e o novo caminho de entrada em `src/domain/content.ts`, com teste.
-- [ ] Etapa 5: Ajustar o handler e `docs/API.md`.
+- [x] Etapa 1: Ler `001_initial.sql` e `002_learning_flow.sql` e mapear como `origin`, `status` e `jobs.kind` estão restritos hoje.
+- [x] Etapa 2: Escrever a migração 003.
+- [x] Etapa 3: Atualizar `src/server/schema.ts`.
+- [x] Etapa 4: Adicionar a regra de duração e o novo caminho de entrada em `src/domain/content.ts`, com teste.
+- [x] Etapa 5: Ajustar o handler e `docs/API.md`.
 
 ## Estratégia de testes
 
-- [ ] Unitários: limite de duração e validação de direitos.
-- [ ] Integração: `npm run test:integration`, incluindo cenário de direitos inválidos.
-- [ ] E2E: não se aplica.
-- [ ] Manual: `npm run db:migrate` em banco com dados, confirmando que a fonte e os segmentos existentes sobrevivem.
+- [x] Unitários: limite de duração e schema segmentado.
+- [x] Integração: `npm run test:integration`, incluindo consentimento, persistência atômica e duração excessiva.
+- [x] E2E: não se aplica.
+- [x] Manual: backup criado antes da migração; `npm run db:migrate` aplicado no banco real sem alterar as fontes existentes.
 
 ## Riscos e rollback
 
@@ -93,15 +93,24 @@ Migração de schema em banco com histórico de estudo real. O agente `dados-per
 ## Registro de execução
 
 ### Alterações realizadas
+Adicionada a intenção `manual|ai`, limite puro de 15 minutos, schema de transcrição ordenada, colunas de rastreabilidade na fonte e rota autenticada/consentida para criar job de transcrição. Segmentos automáticos são gravados juntos com origem, qualidade e precisão explícitas.
+
 ### Arquivos principais
+`migrations/003_video_transcription.sql`, `src/domain/content.ts`, `src/server/schema.ts`, `src/server/api.ts` e `docs/API.md`.
+
 ### Decisões
+Vídeo de terceiro usa `rights=public_link`; a escolha de IA no cadastro registra intenção e a inferência só começa numa segunda mutação com consentimento e estimativa.
+
 ### Divergências
+Nenhuma. A migração foi aditiva e não alterou migrações já aplicadas.
+
 ### Pendências
+Nenhuma nesta task. Disponibilidade e medição do provedor pertencem à TASK-004.
 
 ## Validação
 
-Comandos e resultados.
+`npm run db:migrate`: passou no banco real. `npm run typecheck`: passou. `npm test -- --run`: 35/35. `npm run test:integration`: 30/30, sem chamadas externas. `npm run build`: passou.
 
 ## Handoff
 
-Link para o handoff ativo, quando aplicável.
+Não se aplica; task pronta para `completed/`.

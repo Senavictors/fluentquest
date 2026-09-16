@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { youtubeId, parseContent, normalize } from "../src/domain/content";
+import {
+  youtubeId,
+  parseContent,
+  normalize,
+  validateVideoTranscriptionDuration,
+  videoTranscript,
+} from "../src/domain/content";
 import { initialCard, scheduleCard, xpLevel } from "../src/domain/review";
 import { tokenCostMicros, budgetPeriod } from "../src/server/budget";
 import { normalizeUsage } from "../src/server/providers";
@@ -42,6 +48,32 @@ describe("Fontes e proveniência", () => {
   it("deduplica expressão sem fundir sentidos diferentes", () => {
     expect(normalize("  Under   LOAD ")).toBe("under load");
     expect(normalize("carga de trabalho")).not.toBe(normalize("carregamento"));
+  });
+  it("limita a transcrição por URL a vídeos com duração conhecida de até 15 minutos", () => {
+    expect(validateVideoTranscriptionDuration(15 * 60 * 1000)).toBe(900000);
+    expect(() => validateVideoTranscriptionDuration(0)).toThrow(
+      "Aguarde a duração",
+    );
+    expect(() => validateVideoTranscriptionDuration(900001)).toThrow(
+      "até 15 minutos",
+    );
+  });
+  it("aceita apenas uma transcrição ordenada e com intervalos positivos", () => {
+    expect(
+      videoTranscript.parse({
+        language: "en",
+        segments: [{ startMs: 0, endMs: 1000, text: "Hello." }],
+      }).segments,
+    ).toHaveLength(1);
+    expect(() =>
+      videoTranscript.parse({
+        language: "en",
+        segments: [
+          { startMs: 2000, endMs: 3000, text: "Second" },
+          { startMs: 1000, endMs: 1500, text: "First" },
+        ],
+      }),
+    ).toThrow();
   });
 });
 describe("Revisão e recompensas", () => {

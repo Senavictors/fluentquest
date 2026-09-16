@@ -1,14 +1,14 @@
 ---
 id: TASK-007
 title: Adaptador OpenAI e piloto do crédito de US$ 5
-status: backlog
+status: active
 type: integration
 owner: ia-orcamento
 created_at: 2026-09-14
-updated_at: 2026-09-14
+updated_at: 2026-09-15
 affected_modules: [src/server/providers.ts, package.json, .env.example, docs/INTEGRACOES.md, docs/VALIDACAO.md]
 related_use_cases: [tutor contextual, geração de atividade, transcrição de gravação própria]
-related_adrs: [ADR-001]
+related_adrs: [ADR-001, ADR-002]
 ---
 
 # TASK-007 — Adaptador OpenAI e piloto do crédito de US$ 5
@@ -23,7 +23,7 @@ Hoje existe um único provedor. Se a chave do Gemini falhar, atingir limite de t
 
 ## Objetivo
 
-OpenAI disponível como provedor alternativo para tutor, geração de atividade e transcrição das gravações do próprio proprietário, com conciliação de custo correta e o crédito de US$ 5 como teto natural do experimento.
+OpenAI disponível como provedor alternativo para tutor, geração de atividade e tradução, com conciliação de custo correta e o crédito de US$ 5 como teto natural do experimento. Transcrição de fala permanece no Gemini até que o contrato OpenAI empregado devolva medição de uso auditável.
 
 ## Fora de escopo
 
@@ -48,13 +48,13 @@ Segundo adaptador implementando as mesmas interfaces (`TutorProvider`, `LessonGe
 
 ## Critérios de aceitação
 
-- [ ] CA-01: Tutor, geração de atividade e transcrição de gravação própria funcionam via OpenAI.
-- [ ] CA-02: `usage_events` registra provedor, modelo e custo corretos para cada chamada; o custo estimado bate com o consumo mostrado no painel da OpenAI dentro de uma margem registrada.
-- [ ] CA-03: Trocar de provedor não reaproveita cache do outro.
-- [ ] CA-04: Com a chave da OpenAI ausente, o provedor aparece como não configurado e o Gemini continua funcionando normalmente.
-- [ ] CA-05: Comparação de qualidade entre os dois provedores, na mesma fonte, registrada em `docs/VALIDACAO.md` — com juízo humano, não autoavaliação de modelo.
-- [ ] CA-06: `npm run typecheck`, `npm test` e `npm run test:integration` verdes.
-- [ ] CA-07: `.env.example` e `docs/INTEGRACOES.md` documentam o provedor novo.
+- [x] CA-01: Tutor e geração de atividade funcionam via OpenAI; fala é explicitamente bloqueada nesta integração por ausência de uso auditável.
+- [ ] CA-02: Livro-razão registra modelo, custo e `openai:2026-09-15`; falta comparar com o painel OpenAI.
+- [x] CA-03: Cache é chaveado por provedor e modelo.
+- [x] CA-04: Teste cobre chave OpenAI ausente sem afetar Gemini.
+- [ ] CA-05: Comparação humana na mesma fonte permanece pendente.
+- [x] CA-06: `typecheck`, 37 testes e 30 cenários de integração passaram.
+- [x] CA-07: `.env.example` e `docs/INTEGRACOES.md` documentam o provedor novo.
 
 ## Impacto técnico
 
@@ -96,14 +96,16 @@ Crédito de US$ 5 é finito e não renova. Mitigação: material curto nas etapa
 ## Registro de execução
 
 ### Alterações realizadas
+SDK `openai` 7.15.0 fixado. O adaptador usa Responses API, `store:false`, timeout de 60 s, sem retentativas e schema JSON estrito. O piloto na fonte Amazon concluiu atividade e tutor, com US$ 0,000386 estimados no total.
 ### Arquivos principais
+`src/server/providers.ts`, `src/server/api.ts`, `src/worker.ts`, `src/client/Settings.tsx`, `docs/INTEGRACOES.md`, `docs/VALIDACAO.md`.
 ### Decisões
 ### Divergências
 ### Pendências
 
 ## Validação
 
-Comandos e resultados.
+Piloto manual de atividade e tutor concluído. `npm run typecheck`, `npm test -- --run` (37), `npm run test:integration` (30) e `npm run build` passaram. Conciliação externa continua pendente.
 
 ## Handoff
 

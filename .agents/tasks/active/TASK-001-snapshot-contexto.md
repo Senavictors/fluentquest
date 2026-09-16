@@ -1,3 +1,5 @@
+> Snapshot histórico de 14/09. Retome pelo handoff FASE-A-2026-09-15 e por docs/VALIDACAO.md; assinaturas e números abaixo podem estar desatualizados.
+
 # Snapshot — TASK-001
 
 Gerado em: 2026-09-14 23:30

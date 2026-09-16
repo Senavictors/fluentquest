@@ -40,6 +40,17 @@ export const sources = pgTable("sources", {
   durationMs: integer("duration_ms"),
   positionMs: integer("position_ms").default(0),
   fileKey: text("file_key"),
+  metadataUpdatedAt: timestamp("metadata_updated_at", { withTimezone: true }),
+  transcriptionMode: text("transcription_mode").default("manual"),
+  transcriptProvider: text("transcript_provider"),
+  transcriptModel: text("transcript_model"),
+  transcriptReviewed: boolean("transcript_reviewed").default(false),
+  transcriptionRequestedAt: timestamp("transcription_requested_at", {
+    withTimezone: true,
+  }),
+  transcriptionCompletedAt: timestamp("transcription_completed_at", {
+    withTimezone: true,
+  }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

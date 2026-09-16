@@ -1,11 +1,11 @@
 ---
 id: TASK-006
 title: Abstração multi-provedor de inferência e preço
-status: backlog
+status: active
 type: refactor
 owner: ia-orcamento
 created_at: 2026-09-14
-updated_at: 2026-09-14
+updated_at: 2026-09-15
 affected_modules: [src/server/providers.ts, src/server/budget.ts, .env.example, docs/INTEGRACOES.md]
 related_use_cases: [tutor contextual, geração de atividade, transcrição]
 related_adrs: [ADR-001]
@@ -48,11 +48,11 @@ Registro de provedores em que cada entrada carrega suas próprias credenciais, p
 
 ## Critérios de aceitação
 
-- [ ] CA-01: `infer()` não lê nenhuma variável com prefixo de provedor específico.
-- [ ] CA-02: Um provedor com revisão de preço vencida é bloqueado sem afetar outro provedor válido.
-- [ ] CA-03: `usage_events` permite atribuir cada linha ao provedor e à revisão de preço que a geraram.
-- [ ] CA-04: `npm run typecheck` limpo, `npm test` 11/11, `npm run test:integration` 23/23 — os mesmos números de antes.
-- [ ] CA-05: `.env.example` e `docs/INTEGRACOES.md` refletem o formato novo.
+- [x] CA-01: `infer()` obtém preços e credencial pelo registro de provedor.
+- [x] CA-02: Teste cobre OpenAI ausente enquanto Gemini permanece configurado.
+- [x] CA-03: Reservas registram provedor/modelo e `usage_events.price_version` registra `provedor:data`.
+- [x] CA-04: `typecheck`, 37 testes e 30 cenários de integração passaram.
+- [x] CA-05: `.env.example` e `docs/INTEGRACOES.md` refletem o formato novo.
 
 ## Impacto técnico
 
@@ -93,14 +93,16 @@ Refatoração no caminho que gasta dinheiro. Risco de erro de preço silencioso.
 ## Registro de execução
 
 ### Alterações realizadas
+Registro de provedor com preço, data de revisão, modelo e credencial. Cache e disjuntor passam a separar provedor/modelo; a reserva já registra a identidade. O piloto OpenAI gravou `openai:2026-09-15` no livro-razão.
 ### Arquivos principais
+`src/server/providers.ts`, `src/server/budget.ts`, `.env.example`, `docs/INTEGRACOES.md`.
 ### Decisões
 ### Divergências
 ### Pendências
 
 ## Validação
 
-Comandos e resultados.
+`npm run typecheck`, `npm test -- --run` (37), `npm run test:integration` (30) e `npm run build` passaram.
 
 ## Handoff
 

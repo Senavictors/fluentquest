@@ -1,11 +1,11 @@
 ---
 id: TASK-001
 title: Configurar Gemini e executar o piloto de ativação
-status: backlog
+status: active
 type: integration
 owner: ia-orcamento
 created_at: 2026-09-14
-updated_at: 2026-09-14
+updated_at: 2026-09-15
 affected_modules: [src/server/providers.ts, src/server/budget.ts, docs/INTEGRACOES.md, docs/VALIDACAO.md]
 related_use_cases: [tutor contextual, geração de atividade, feedback de fala]
 related_adrs: [ADR-001]
@@ -49,14 +49,14 @@ Camada de IA ligada, exercitada de ponta a ponta com material do próprio propri
 
 ## Critérios de aceitação
 
-- [ ] CA-01: `.env.local` contém `AI_ENABLED=true`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `AI_PRICES_REVIEWED_ON` e os dois preços; nenhum deles aparece em arquivo versionado.
+- [x] CA-01: `.env.local` contém `AI_ENABLED=true`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `AI_PRICES_REVIEWED_ON` e os dois preços; nenhum deles aparece em arquivo versionado.
 - [ ] CA-02: Tela de Ajustes mostra Gemini como "Configurado".
 - [ ] CA-03: Uma atividade foi gerada a partir de um texto curto do proprietário, e os `segmentIds` citados existem na fonte (passo 3 do piloto).
 - [ ] CA-04: Uma gravação própria curta foi transcrita e avaliada; transcrição e feedback foram comparados a uma avaliação humana e a divergência ficou registrada (passo 4).
-- [ ] CA-05: `GET /api/usage` mostra `confirmed > 0` e a reserva correspondente saiu de `active`.
+- [x] CA-05: `GET /api/usage` mostra `confirmed > 0` e a reserva correspondente saiu de `active`.
 - [ ] CA-06: Timeout, 429 e saída truncada foram exercitados e o comportamento observado ficou registrado (passo 6).
 - [ ] CA-07: `docs/VALIDACAO.md` existe, cobre os passos 1 a 6 com resultado real, marca o passo 5 como não concluído por ausência de fatura, e o link do `README.md:82` deixa de estar quebrado.
-- [ ] CA-08: `docs/INTEGRACOES.md` atualizado com o custo e a latência medidos, substituindo a afirmação de que nenhuma chamada paga foi realizada.
+- [x] CA-08: `docs/INTEGRACOES.md` atualizado com o custo e a latência medidos, substituindo a afirmação de que nenhuma chamada paga foi realizada.
 
 ## Impacto técnico
 
@@ -99,15 +99,30 @@ Rollback é `AI_ENABLED=false` e reinício — volta ao estado atual sem perda. 
 ## Registro de execução
 
 ### Alterações realizadas
+
+2026-09-15 — Preços implícitos removidos; datas inválidas, futuras ou vencidas bloqueadas; estado de integração considera preços; SDK sem retries; HTTP 408 mantém reserva. Consentimento de envio de gravações implementado em Practice.tsx. tests/providers.test.ts cobre IA desligada, preços, datas, ordem de reserva, timeout, 429, truncamento e uso ausente. docs/INTEGRACOES.md e docs/API.md atualizados.
+
 ### Arquivos principais
 ### Decisões
 ### Divergências
+
+Escopo registrado nesta revisão: correções necessárias à execução segura do fluxo local identificado pela inspeção. QA isolado e documentação transversal registrados separadamente em TASK-008. Fixtures não equivalem ao piloto real.
+
 ### Pendências
+
+Credencial Gemini ausente, IA desligada. Preços oficiais, material próprio, limites do provedor, piloto real, custos/latência e comparação humana pendentes. Teto do proprietário não alterado. Fase B não liberada.
+
 
 ## Validação
 
-Comandos e resultados.
+Validação de 15/09/2026: npm run typecheck passou; npm test 30/30; npm run test:integration 27/27; npm run build passou. QA Edge desktop/mobile e axe: zero erros/transbordamentos e zero violações em nove telas e quatro variantes do formulário. Execução em banco temporário, sem chamadas reais de IA/YouTube. Evidências e limites em [docs/VALIDACAO.md](../../../docs/VALIDACAO.md).
 
 ## Handoff
 
-Link para o handoff ativo, quando aplicável.
+[Continuidade da Fase A](../../handoffs/FASE-A-2026-09-15.md)
+
+## Atualização após configuração — 2026-09-15
+
+Piloto real de texto autorizado e executado. Gemini aceito; preços oficiais registrados localmente, IA ativada, teto US$ 1 e alerta US$ 0,80 pela API. Geração em 1993 ms e tutor em 14284 ms; três IDs de evidência válidos; duas reservas settled, US$ 0,001288 estimados e zero reservado. AI Studio: nível gratuito sem faturamento. CA-01/CA-05 verificados; CA-03 exercitado com exemplo autoral do aplicativo autorizado pelo proprietário, não com texto pessoal. Ajustes no navegador, voz e avaliação humana continuam pendentes. CA-06 tem fixtures locais já executadas. CA-08 documentado com custos estimados/latências reais.
+
+Resultados detalhados em [VALIDACAO.md](../../../docs/VALIDACAO.md), seção Piloto real de texto. Registros anteriores permanecem como histórico.

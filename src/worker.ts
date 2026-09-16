@@ -1,7 +1,13 @@
 import { boss, dispatchJobs, emitJob, QUEUE } from "./server/queue";
 import { pool, query, transaction } from "./server/db";
-import { gemini, integrationStatus, youtube } from "./server/providers";
-import { AppError } from "./domain/content";
+import {
+  gemini,
+  integrationStatus,
+  textAI,
+  videoIntegrationStatus,
+  youtube,
+} from "./server/providers";
+import { AppError, validateVideoTranscriptionDuration } from "./domain/content";
 import { removeUserObjects, storage } from "./server/storage";
 export async function prepare(id: string) {
   const rows = await query(
@@ -19,8 +25,10 @@ export async function prepare(id: string) {
       ])
     )[0];
     if (!source) return;
+    let durationMs = source.duration_ms as number | null;
     if (source.video_id && integrationStatus().youtube) {
       const metadata = await youtube.get(source.video_id);
+      durationMs = metadata.durationMs;
       await query(
         "UPDATE sources SET title=$2,author=$3,duration_ms=$4,metadata_updated_at=now(),status=$5 WHERE id=$1",
         [
@@ -28,7 +36,11 @@ export async function prepare(id: string) {
           metadata.title,
           metadata.author,
           metadata.durationMs,
-          metadata.available ? "processing" : "unavailable",
+          metadata.available
+            ? job.kind === "transcribe"
+              ? "transcribing"
+              : "processing"
+            : "unavailable",
         ],
       );
       if (!metadata.available)
@@ -36,6 +48,80 @@ export async function prepare(id: string) {
           "SOURCE_UNAVAILABLE",
           "O vídeo não está disponível para incorporação.",
         );
+    }
+    if (job.kind === "transcribe") {
+      if (!source.video_id || !source.url)
+        throw new AppError(
+          "INVALID_VIDEO_SOURCE",
+          "A transcrição por URL exige um vídeo válido do YouTube.",
+        );
+      if (source.rights !== "public_link")
+        throw new AppError(
+          "RIGHTS_REQUIRED",
+          "Confirme o uso do link público antes de transcrever.",
+        );
+      validateVideoTranscriptionDuration(Number(durationMs));
+      if (
+        (
+          await query("SELECT 1 FROM segments WHERE source_id=$1 LIMIT 1", [
+            source.id,
+          ])
+        ).length
+      )
+        throw new AppError(
+          "TRANSCRIPT_EXISTS",
+          "Esta fonte já possui uma transcrição.",
+        );
+      await emitJob(id, { status: "processing", completed: 1, total: 3 });
+      const transcript = await gemini.transcribeVideo(
+        job.user_id,
+        source.url,
+        Number(durationMs),
+      );
+      await emitJob(id, { status: "processing", completed: 2, total: 3 });
+      await transaction(async (c) => {
+        const current = (
+          await c.query("SELECT status FROM jobs WHERE id=$1 FOR UPDATE", [id])
+        ).rows[0];
+        if (
+          !current ||
+          current.status === "cancelled" ||
+          (
+            await c.query("SELECT 1 FROM deletion_requests WHERE user_id=$1", [
+              job.user_id,
+            ])
+          ).rowCount
+        )
+          return;
+        if (
+          (
+            await c.query("SELECT 1 FROM segments WHERE source_id=$1 LIMIT 1", [
+              source.id,
+            ])
+          ).rowCount
+        )
+          throw new AppError(
+            "TRANSCRIPT_CONFLICT",
+            "Outra transcrição foi adicionada durante o processamento.",
+          );
+        for (let ordinal = 0; ordinal < transcript.segments.length; ordinal++) {
+          const segment = transcript.segments[ordinal];
+          await c.query(
+            "INSERT INTO segments(source_id,ordinal,start_ms,end_ms,text,origin,time_accuracy,quality_status) VALUES($1,$2,$3,$4,$5,'provider_video_url','approximate','ai_unreviewed')",
+            [source.id, ordinal, segment.startMs, segment.endMs, segment.text],
+          );
+        }
+        await c.query(
+          "UPDATE sources SET status='text_ready',transcription_mode='ai',transcript_provider='gemini',transcript_model=$2,transcript_reviewed=false,transcription_completed_at=now(),updated_at=now() WHERE id=$1",
+          [source.id, videoIntegrationStatus().model],
+        );
+        await c.query(
+          "UPDATE jobs SET status='ready',completed=3,total=3,updated_at=now() WHERE id=$1",
+          [id],
+        );
+      });
+      await emitJob(id, { status: "ready", completed: 3, total: 3 });
+      return;
     }
     const segments = await query(
       "SELECT id,text FROM segments WHERE source_id=$1 ORDER BY ordinal LIMIT 8",
@@ -46,7 +132,7 @@ export async function prepare(id: string) {
         "NO_TRANSCRIPT",
         "Sem transcrição. Adicione uma legenda autorizada ou pratique com um cenário independente.",
       );
-    const unit = await gemini.generate(
+    const unit = await textAI.generate(
       job.user_id,
       segments as { id: string; text: string }[],
     );
@@ -75,7 +161,7 @@ export async function prepare(id: string) {
           unit.expectedAnswer,
           JSON.stringify(unit.segmentIds),
           JSON.stringify(unit.vocabulary),
-          "gemini_unreviewed",
+          `${integrationStatus().provider}_unreviewed`,
         ],
       );
       await c.query(
@@ -110,7 +196,7 @@ export async function prepare(id: string) {
       [id, status, e.code, e.message],
     );
     await query(
-      "UPDATE sources SET status=$2 WHERE id=$1 AND status<>'unavailable'",
+      "UPDATE sources SET status=CASE WHEN $2='awaiting_configuration' AND EXISTS(SELECT 1 FROM segments WHERE source_id=sources.id) THEN 'text_ready' ELSE $2 END WHERE id=$1 AND status<>'unavailable'",
       [job.source_id, status],
     );
     await emitJob(id, { status, error: e.message });

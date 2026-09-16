@@ -17,10 +17,24 @@ export function tokenCostMicros(
 ) {
   return Math.ceil(input * inputPrice + output * outputPrice);
 }
+export function videoTranscriptionEstimateMicros(
+  durationMs: number,
+  inputPrice: number,
+  outputPrice: number,
+) {
+  // Static low-resolution video is budgeted at 100 tokens/s, plus prompt overhead.
+  const inputTokens = Math.ceil(durationMs / 1000) * 100 + 4096;
+  const outputTokens = 8000;
+  return Math.ceil(
+    tokenCostMicros(inputTokens, outputTokens, inputPrice, outputPrice) * 1.25,
+  );
+}
 export async function reserveBudget(
   userId: string,
   purpose: string,
   micros: number,
+  provider?: string,
+  model?: string,
 ) {
   if (!Number.isSafeInteger(micros) || micros <= 0)
     throw new AppError("INVALID_RESERVATION", "Reserva de custo inválida.");
@@ -80,8 +94,8 @@ export async function reserveBudget(
       );
     return (
       await c.query(
-        "INSERT INTO budget_reservations(user_id,period,purpose,amount_micros) VALUES($1,$2,$3,$4) RETURNING id",
-        [userId, period, purpose, micros],
+        "INSERT INTO budget_reservations(user_id,period,purpose,amount_micros,provider,model) VALUES($1,$2,$3,$4,$5,$6) RETURNING id",
+        [userId, period, purpose, micros, provider ?? null, model ?? null],
       )
     ).rows[0].id as string;
   });

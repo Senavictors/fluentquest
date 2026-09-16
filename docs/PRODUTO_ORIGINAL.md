@@ -1,3 +1,9 @@
+---
+estado: planejado
+fonte: documento original do proprietário; estado implementado em docs/VALIDACAO.md
+ultima-revisao: 2026-09-15 (TASK-008; metadados documentais, conteúdo original preservado)
+---
+
 # FluentQuest
 
 ## Documento de produto e engenharia

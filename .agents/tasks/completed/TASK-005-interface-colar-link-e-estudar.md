@@ -1,11 +1,11 @@
 ---
 id: TASK-005
 title: Interface do fluxo colar link e estudar
-status: backlog
+status: completed
 type: feature
 owner: interface-editorial
 created_at: 2026-09-14
-updated_at: 2026-09-14
+updated_at: 2026-09-15
 affected_modules: [src/client/Study.tsx, src/client/App.tsx, src/client/types.ts]
 related_use_cases: [ingestão de fonte do YouTube com transcrição]
 related_adrs: [ADR-001]
@@ -48,13 +48,13 @@ Ao colar um link, o proprietário escolhe explicitamente entre "vou colar a lege
 
 ## Critérios de aceitação
 
-- [ ] CA-01: O fluxo de colar link oferece as duas opções de forma clara, com a de IA exigindo confirmação.
-- [ ] CA-02: Custo estimado e saldo do teto aparecem antes da confirmação.
-- [ ] CA-03: O progresso é acompanhado por SSE e sobrevive a um refresh da página.
-- [ ] CA-04: Segmentos transcritos são visualmente distinguíveis de legenda fornecida pelo proprietário.
-- [ ] CA-05: Com `AI_ENABLED=false`, a opção aparece desabilitada com a mensagem padrão.
-- [ ] CA-06: `node scripts/accessibility-qa.mjs` com 0 violações; layout verificado em 390×844.
-- [ ] CA-07: Identidade Broadsheet preservada nos temas claro e escuro.
+- [x] CA-01: O fluxo de colar link oferece as duas opções de forma clara, com a de IA exigindo confirmação.
+- [x] CA-02: Custo estimado e saldo do teto aparecem antes da confirmação.
+- [x] CA-03: O progresso é acompanhado por SSE e sobrevive a um refresh da página.
+- [x] CA-04: Segmentos transcritos são visualmente distinguíveis de legenda fornecida pelo proprietário.
+- [x] CA-05: Com `AI_ENABLED=false`, a opção aparece desabilitada com a mensagem padrão.
+- [x] CA-06: `node scripts/accessibility-qa.mjs` com 0 violações; layout verificado em 390×844.
+- [x] CA-07: Identidade Broadsheet preservada nos temas claro e escuro.
 
 ## Impacto técnico
 
@@ -75,18 +75,18 @@ O aviso de privacidade do tier gratuito aparece antes da primeira transcrição,
 
 ## Plano de implementação
 
-- [ ] Etapa 1: Mapear os estados possíveis da fonte e desenhar o que cada um mostra.
-- [ ] Etapa 2: Implementar a escolha e a confirmação com custo.
-- [ ] Etapa 3: Ligar o acompanhamento por SSE ao novo tipo de job.
-- [ ] Etapa 4: Tratamento visual de proveniência e tempo aproximado.
-- [ ] Etapa 5: QA de acessibilidade e verificação mobile.
+- [x] Etapa 1: Mapear os estados possíveis da fonte e desenhar o que cada um mostra.
+- [x] Etapa 2: Implementar a escolha e a confirmação com custo.
+- [x] Etapa 3: Ligar o acompanhamento por SSE ao novo tipo de job.
+- [x] Etapa 4: Tratamento visual de proveniência e tempo aproximado.
+- [x] Etapa 5: QA de acessibilidade e verificação mobile.
 
 ## Estratégia de testes
 
-- [ ] Unitários: não se aplica (sem regra de domínio nova).
-- [ ] Integração: não se aplica.
-- [ ] E2E: `node scripts/browser-qa.mjs`.
-- [ ] Manual: `node scripts/accessibility-qa.mjs` e inspeção em 390×844, claro e escuro.
+- [x] Unitários: não se aplica; regras de estimativa e disponibilidade ficam no servidor.
+- [x] Integração: rota, consentimento e persistência cobertos pelos 30 cenários da Fase B.
+- [x] E2E: `scripts/source-qa.mjs` verifica a opção sem IA, legenda e proveniência automática.
+- [x] Manual: fluxo real conferido no Chrome; QA isolado em 1440×1000 e 390×844, claro e escuro, sem violações axe ou overflow.
 
 ## Riscos e rollback
 
@@ -95,15 +95,24 @@ Risco de o custo estimado exibido divergir do cobrado. Mitigação: apresentar c
 ## Registro de execução
 
 ### Alterações realizadas
+O formulário de YouTube oferece legenda autorizada ou Gemini; a segunda opção fica indisponível sem integração. A tela de estudo mostra estimativa, saldo, consentimento, progresso persistente do job e a marcação de transcrição automática não revisada com tempo aproximado.
+
 ### Arquivos principais
+`src/client/Study.tsx`, `src/client/types.ts`, `src/app/globals.css`, `scripts/qa-isolated.ts` e `scripts/source-qa.mjs`.
+
 ### Decisões
+Todo cálculo de custo e elegibilidade vem do servidor. A interface apenas apresenta o estado e exige confirmação explícita.
+
 ### Divergências
+O provedor real não devolveu segmentos por HTTP 503. A apresentação final de proveniência foi validada em banco e navegador isolados com fixture declarada, sem alegar resultado real.
+
 ### Pendências
+Nenhuma de interface. A transcrição real e o custo por minuto permanecem na TASK-004.
 
 ## Validação
 
-Comandos e resultados.
+`npm run typecheck`: passou. `npm test -- --run`: 35/35. `npm run test:integration`: 30/30. `npm run build`: passou. QA isolado: zero erros, violações axe e overflow; confirmou opção desabilitada sem IA e proveniência automática em 1440/390, claro/escuro. Chrome real confirmou estimativa, saldo, consentimento, fila e progresso SSE.
 
 ## Handoff
 
-Link para o handoff ativo, quando aplicável.
+Não se aplica; task pronta para `completed/`.

@@ -1,12 +1,12 @@
 ---
 id: TASK-004
 title: Adaptador Gemini de transcrição por URL de vídeo e orçamento por minuto
-status: backlog
+status: blocked
 type: integration
 owner: ia-orcamento
 created_at: 2026-09-14
-updated_at: 2026-09-14
-affected_modules: [src/server/providers.ts, src/server/budget.ts, src/worker.ts, docs/INTEGRACOES.md]
+updated_at: 2026-09-15
+affected_modules: [src/server/providers.ts, src/server/budget.ts, src/worker.ts, migrations/004_budget_reservation_provider_model.sql, docs/INTEGRACOES.md]
 related_use_cases: [transcrição de vídeo por URL]
 related_adrs: [ADR-001]
 ---
@@ -53,11 +53,11 @@ Nova função de provedor que recebe a URL validada e a duração conhecida (vin
 
 - [ ] CA-01: Transcrição de um vídeo curto real produz segmentos com `time_accuracy = 'approximate'` e o `origin` novo de TASK-003.
 - [ ] CA-02: `GET /api/usage` mostra o custo da transcrição em finalidade separada da geração de atividade.
-- [ ] CA-03: Vídeo acima do limite é recusado sem criar reserva — verificável por `budget_reservations` vazia após a tentativa.
+- [x] CA-03: Vídeo acima do limite é recusado sem criar reserva — verificável por `budget_reservations` vazia após a tentativa.
 - [ ] CA-04: Custo real por minuto de vídeo medido e registrado em `docs/VALIDACAO.md`.
-- [ ] CA-05: Uma interrupção no meio da transcrição deixa a reserva em `unknown` e nenhum segmento parcial salvo.
-- [ ] CA-06: `docs/INTEGRACOES.md` reescrito: a frase que diz que o suporte a URL de vídeo não está ativado deixa de valer e é substituída pelos limites reais adotados.
-- [ ] CA-07: Nenhuma dependência nova no `package.json`.
+- [x] CA-05: Uma interrupção no meio da transcrição deixa a reserva em `unknown` e nenhum segmento parcial salvo.
+- [x] CA-06: `docs/INTEGRACOES.md` reescrito: a frase que diz que o suporte a URL de vídeo não está ativado deixa de valer e é substituída pelos limites reais adotados.
+- [x] CA-07: Nenhuma dependência nova no `package.json`.
 
 ## Impacto técnico
 
@@ -78,37 +78,46 @@ Conteúdo de terceiros passa a ser enviado ao provedor. No tier gratuito isso al
 
 ## Plano de implementação
 
-- [ ] Etapa 1: Confirmar na documentação do provedor o formato exato de entrada de URL de vídeo e os limites do tier gratuito.
-- [ ] Etapa 2: Estender a fórmula de reserva para duração.
-- [ ] Etapa 3: Escrever o adaptador, com schema de saída segmentada validado por Zod.
-- [ ] Etapa 4: Adicionar o handler de job no worker.
+- [x] Etapa 1: Confirmar na documentação do provedor o formato exato de entrada de URL de vídeo e os limites do tier gratuito.
+- [x] Etapa 2: Estender a fórmula de reserva para duração.
+- [x] Etapa 3: Escrever o adaptador, com schema de saída segmentada validado por Zod.
+- [x] Etapa 4: Adicionar o handler de job no worker.
 - [ ] Etapa 5: Medir custo e latência com um vídeo curto; registrar.
-- [ ] Etapa 6: Exercitar recusa por duração, interrupção e resposta truncada.
-- [ ] Etapa 7: Reescrever a seção de YouTube em `docs/INTEGRACOES.md`.
+- [x] Etapa 6: Exercitar recusa por duração, interrupção e resposta truncada.
+- [x] Etapa 7: Reescrever a seção de YouTube em `docs/INTEGRACOES.md`.
 
 ## Estratégia de testes
 
-- [ ] Unitários: fórmula de reserva por duração, em `src/domain/` se puder ser pura.
-- [ ] Integração: `npm run test:integration` com cenário novo de recusa por duração e de IA desligada.
+- [x] Unitários: fórmula de reserva por duração e contrato de SDK sem tráfego externo.
+- [x] Integração: `npm run test:integration` com recusa por duração, falha sem parcial e persistência atômica.
 - [ ] E2E: não se aplica.
 - [ ] Manual: um vídeo curto real, medido.
 
 ## Riscos e rollback
 
-Maior risco de custo do plano inteiro. Mitigação: começar com um vídeo de poucos minutos e o teto de US$ 10 já aplicado. Rollback é desativar o novo `jobs.kind` — o schema de TASK-003 permanece sem causar dano. O agente `ia-orcamento` tem poder de veto sobre esta task.
+Maior risco de custo do plano inteiro. Mitigação aplicada: vídeo de 8 min 15 s e teto temporário de US$ 1 no aplicativo. Rollback é desativar o novo `jobs.kind` — o schema de TASK-003 permanece sem causar dano. O agente `ia-orcamento` tem poder de veto sobre esta task.
 
 ## Registro de execução
 
 ### Alterações realizadas
+Implementado adaptador de vídeo com URL canônica do YouTube, blocos `text`/`video` da API Interactions, saída segmentada validada, reserva conservadora por duração, preços próprios do modelo de vídeo, timeout de 180 s, retries do SDK desativados e persistência atômica no worker. A migração 004 registra provedor/modelo na reserva para o disjuntor operar por identidade.
+
 ### Arquivos principais
+`src/server/providers.ts`, `src/server/budget.ts`, `src/worker.ts`, `migrations/004_budget_reservation_provider_model.sql`, `tests/providers.test.ts`, `scripts/integration.ts`, `docs/INTEGRACOES.md` e `docs/VALIDACAO.md`.
+
 ### Decisões
+Modelo final configurado: `gemini-3.5-flash-lite`, indicado pela própria API para contas novas. O servidor não baixa mídia. HTTP 5xx e timeout são ambíguos e mantêm reserva; 4xx conhecido libera.
+
 ### Divergências
+O plano supunha que um vídeo curto produziria medição na primeira janela. O Google respondeu 503 por alta demanda nos modelos válidos; depois da correção para o contrato atual de Interactions, 3.5 Flash-Lite respondeu 500 com a mesma condição. O fallback 2.5 retornou 404 por indisponibilidade para conta nova.
+
 ### Pendências
+CA-01, CA-02, CA-04, etapa 5 e teste manual dependem de uma resposta real com uso. Até lá não existe custo por minuto nem segmento real para declarar.
 
 ## Validação
 
-Comandos e resultados.
+`npm run typecheck`: passou. `npm test -- --run tests/providers.test.ts`: 22/22. `npm run test:integration`: 30/30, sem chamadas externas. `npm run build`: passou. Piloto real: URL aceita e processada pelo worker; 503 `UNAVAILABLE` e, no contrato atual de Interactions, 500 por alta demanda; zero segmentos e reservas preservadas para conciliação. Detalhes em `docs/VALIDACAO.md`.
 
 ## Handoff
 
-Link para o handoff ativo, quando aplicável.
+Continuar nesta task após a janela do disjuntor e quando o endpoint de vídeo do Gemini estiver disponível.

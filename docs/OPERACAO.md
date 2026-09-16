@@ -1,3 +1,9 @@
+---
+estado: real
+fonte: package.json, scripts/backup.ts, scripts/restore.ts, src/worker.ts
+ultima-revisao: 2026-09-15 (TASK-008; metadados documentais)
+---
+
 # Operação local
 
 ## Processos e arquivos

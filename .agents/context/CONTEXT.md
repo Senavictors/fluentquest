@@ -1,18 +1,20 @@
 # Contexto Atual do Projeto — FluentQuest
 
-Última atualização: 2026-09-14
+Última atualização: 2026-09-15
 
 ## Estado atual
 
-Aplicativo pessoal de inglês para desenvolvedores, local-first e de proprietário único, rodando em `127.0.0.1:3215` (web + worker via `npm run dev`). O MVP offline está **completo e verde**: `tsc --noEmit` sem erros, 11/11 testes unitários, 23/23 cenários de integração sem nenhuma chamada de IA, `next build` compilando 4 rotas, e 0 violações de acessibilidade (axe) em 9 telas.
+Aplicativo pessoal de inglês para desenvolvedores, local-first e de proprietário único, rodando em `127.0.0.1:3215` (web + worker via `npm run dev`). O MVP local está **completo e verde**: `tsc --noEmit` sem erros, 35/35 testes automatizados, 30/30 cenários de integração sem nenhuma chamada externa, `next build` compilando 4 rotas, e zero violações de acessibilidade/overflow no QA desktop e mobile.
 
-O que ainda não foi exercitado é a camada de IA: os adaptadores Gemini existem e passam por tipos e contratos, mas nunca fizeram uma chamada paga. Tutor, tradução automática, geração de atividades e feedback de fala respondem "integração não configurada" enquanto `AI_ENABLED=false`.
+Pilotos reais de texto concluídos em 15/09/2026 com autorização explícita: Gemini 3.5 Flash-Lite e OpenAI `gpt-4o-mini` estão configurados localmente, com preços revisados e teto US$ 1/alerta US$ 0,80. O piloto Gemini conciliou US$ 0,001288; o piloto OpenAI na mesma fonte conciliou US$ 0,000386 (atividade e tutor, com `price_version=openai:2026-09-15`). AI Studio mostra tier gratuito sem faturamento. YouTube Data API v3 usa chave separada e validada: `videos.list` retornou 200 e salvou os metadados oficiais. A transcrição direta por URL foi implementada com Interactions e alcançou o Gemini com o vídeo de 8 min 15 s, mas as inferências válidas retornaram HTTP 500/503 por alta demanda. Zero segmentos parciais; reservas 5xx permanecem `unknown` para conciliação. O fluxo de legenda fornecida do vídeo `fwe81ITBSfI` carregou 53 trechos e gerou atividades pelos dois provedores de texto.
 
 Repositório Git inicializado no bootstrap desta arquitetura (branch `main`), com identidade local `Senavictors <victorsena760@gmail.com>`. Antes disso o projeto vivia sem controle de versão.
 
 ## Iniciativas ativas
 
-Nenhuma task ativa. Sete tasks planejadas em `.agents/tasks/backlog/` (TASK-001 a TASK-007), derivadas de ADR-001 — ativação da camada de IA em três fases. A ordem é obrigatória: Fase A (TASK-001, TASK-002) → Fase B (TASK-003, TASK-004, TASK-005) → Fase C (TASK-006, TASK-007). Nenhuma chamada paga foi feita ainda; TASK-001 é a primeira.
+TASK-001 está em active: o piloto Gemini de texto foi concluído; voz e avaliação humana continuam pendentes. TASK-002, TASK-003, TASK-005 e TASK-008 estão concluídas. TASK-004 está `blocked` dentro de `active/`: faltam somente transcrição real e medição de custo, impedidas pelo HTTP 503 do provedor. TASK-006 e TASK-007 estão em active: abstração multi-provedor e adaptador OpenAI de texto foram implementados e tiveram piloto real; faltam apenas juízo humano comparativo e conciliação com o painel OpenAI.
+
+Validação de 15/09: typecheck e build passaram; 35 testes automatizados e 30 cenários de integração. QA isolado confirmou legenda, opção Gemini desabilitada sem IA, proveniência automática e quatro variantes 1440/390 claro/escuro sem violações axe ou overflow. Consulte [VALIDACAO.md](../../docs/VALIDACAO.md) via raiz do projeto.
 
 ## Arquitetura vigente
 
@@ -28,25 +30,25 @@ Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`
 
 ## Dívida técnica conhecida
 
-- **`docs/VALIDACAO.md` não existe** embora o `README.md` o cite duas vezes como fonte das evidências e limites de validação. Único link quebrado da documentação.
-- **Cobertura unitária estreita**: `tests/domain.test.ts` cobre fontes, FSRS e orçamento; os 11 módulos de `src/server/` são cobertos apenas pelo `scripts/integration.ts`.
+- **Documentação de validação resolvida:** `docs/VALIDACAO.md` agora registra evidências atuais e pendências por task.
+- **Cobertura:** `tests/providers.test.ts` cobre contratos Gemini/OpenAI com mocks; integração cobre banco e worker. Texto teve pilotos reais; vídeo depende da recuperação do endpoint Gemini e qualidade pedagógica continua sem avaliação humana.
 - **Sem script de lint**: Prettier está instalado como devDependency, mas não há `npm run lint`.
 - **Backup manual**: `docs/OPERACAO.md` registra que nenhuma tarefa agendada do Windows foi criada. Existe um backup de 2026-09-14T22:00.
 - **Mobile só emulado**: microfone e codecs verificados em 390×844 por emulação; nunca em aparelho físico.
 
 ## Decisões recentes
 
-**ADR-001** (2026-09-14, `accepted`) — ativação da camada de IA em três fases, com Gemini no tier gratuito e teto de US$ 10/mês. Decidiu também habilitar transcrição de vídeo por URL (o provedor processa; o servidor não baixa mídia) e adicionar a OpenAI como segundo provedor depois de generalizar a abstração de preço. Duas consequências que valem para qualquer sessão futura: no tier gratuito **não há fatura**, então o teto vira freio de uso e não de gasto; e o conteúdo enviado pode ser usado pelo provedor para treino — risco aceito explicitamente pelo proprietário. Índice em `.agents/decisions/README.md`. As decisões de produto anteriores ao bootstrap estão em `PRODUCT.md` e `docs/INTEGRACOES.md`.
+**ADR-001** (2026-09-14, `accepted`) — ativação da camada de IA em três fases, com Gemini no tier gratuito e OpenAI como provedor de texto alternativo. Decidiu também habilitar transcrição de vídeo por URL (o provedor processa; o servidor não baixa mídia) e generalizar a abstração de preço. O limite operacional vigente do piloto é US$ 1/mês. No tier gratuito Gemini **não há fatura**, então o teto vira freio de uso; em OpenAI, a conciliação externa ainda precisa ser feita no painel. Índice em `.agents/decisions/README.md`. As decisões de produto anteriores ao bootstrap estão em `PRODUCT.md` e `docs/INTEGRACOES.md`.
 
 ## Riscos atuais
 
-- **Piloto de IA não executado** (alta probabilidade de surpresa, impacto médio): qualidade pedagógica, latência e custo real do Gemini são desconhecidos. Mitigação: seguir o piloto de 7 passos em `docs/INTEGRACOES.md`, começando com teto de US$ 1.
-- **Revisão de preço vence em 31 dias** (impacto: bloqueio de chamadas): `AI_PRICES_REVIEWED_ON` vazio hoje; ao ativar a IA, o vencimento passa a bloquear novas chamadas até atualização.
+- **Transcrição direta de vídeo e piloto de voz/revisão humana pendentes** (impacto médio): o endpoint de vídeo do Gemini esteve indisponível por alta demanda; latência, custo por minuto e qualidade da transcrição direta não foram medidos. Mitigação: legenda fornecida mantém o estudo funcional; nova tentativa consciente após o disjuntor, mantendo teto de US$ 1 e sem retries automáticos.
+- **Revisão de preço vence em 31 dias** (impacto: bloqueio de chamadas): `AI_PRICES_REVIEWED_ON=2026-09-15`; ao ativar a IA, o vencimento passa a bloquear novas chamadas até atualização.
 - **Perda de dados de estudo** (impacto alto): o banco `fluentquest` guarda cartões, gravações e histórico; backup é manual.
 
 ## Não fazer agora
 
-- Ativar `AI_ENABLED=true` sem executar o piloto de `docs/INTEGRACOES.md` e sem preencher os preços revisados.
+- Enviar voz sem consentimento, elevar o teto inicial de US$ 1 ou repetir automaticamente a transcrição de vídeo. IA e o piloto de vídeo foram autorizados nesta sessão.
 - Trocar o modelo Gemini configurado (Flash-Lite, thinking minimal) sem revisar preço, modalidades e regressão.
 - Introduzir scraping, download de vídeo do YouTube, publicação, pagamentos, Live ou avatar 3D — estão fora do escopo declarado em `PRODUCT.md`.
 - Mover os documentos já existentes na raiz de `docs/` (`API.md`, `INTEGRACOES.md`, `OPERACAO.md`, `PRODUTO_ORIGINAL.md`) sem aprovação.

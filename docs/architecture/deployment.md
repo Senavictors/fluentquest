@@ -1,7 +1,7 @@
 ---
 estado: real
 fonte: package.json (scripts), next.config.ts, .env.example, .env.local, scripts/migrate.ts, scripts/setup.ts, .claude/launch.json
-ultima-revisao: 2026-09-14 (bootstrap-init)
+ultima-revisao: 2026-09-15 (TASK-006, TASK-007)
 ---
 
 # Implantação
@@ -30,7 +30,9 @@ Não há. A escolha de `--hostname 127.0.0.1` é deliberada: a aplicação **nã
 - `BETTER_AUTH_SECRET` — segredo de sessão, mínimo de 32 caracteres.
 - `BETTER_AUTH_URL` — base e origem confiável da autenticação. Default `http://localhost:3215`.
 - `AI_ENABLED` — default `false`. Enquanto falso, as funções de IA informam "integração não configurada".
-- `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_INPUT_USD_PER_MILLION`, `GEMINI_OUTPUT_USD_PER_MILLION`, `AI_PRICES_REVIEWED_ON` — ativação de IA; a revisão de preço vence em 31 dias e bloqueia novas chamadas até ser atualizada.
+- `AI_TEXT_PROVIDER` — seleciona `gemini` ou `openai` para tutor, atividade e tradução.
+- `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_INPUT_USD_PER_MILLION`, `GEMINI_OUTPUT_USD_PER_MILLION`, `AI_PRICES_REVIEWED_ON` — Gemini para texto quando selecionado, vídeo por URL e transcrição de fala; a revisão vence em 31 dias.
+- `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_INPUT_USD_PER_MILLION`, `OPENAI_OUTPUT_USD_PER_MILLION`, `OPENAI_PRICES_REVIEWED_ON` — OpenAI para texto; a revisão vence em 31 dias. A chave nunca é exposta ao cliente.
 - `YOUTUBE_API_KEY` — opcional; só habilita metadados. O player funciona sem ela.
 - `DATA_DIR` — raiz dos arquivos privados (default `./data`).
 - `PG_BIN` — caminho dos binários do PostgreSQL, usado por backup e restauração.
