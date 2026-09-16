@@ -11,6 +11,8 @@ import {
   cardInput,
   normalize,
   parseContent,
+  MAX_VIDEO_TRANSCRIPTION_MS,
+  validateVideoTranscriptionDuration,
   youtubeId,
   scenarios,
 } from "../domain/content";
@@ -24,13 +26,14 @@ import {
 import { exampleSegments, exampleVocabulary } from "./example";
 import {
   integrationStatus,
+  videoIntegrationStatus,
   requireAI,
-  gemini,
+  textAI,
   assessSpeech,
   streamTutor,
 } from "./providers";
 import { storage } from "./storage";
-import { usage } from "./budget";
+import { usage, videoTranscriptionEstimateMicros } from "./budget";
 import { fileTypeFromBuffer } from "file-type";
 import { inspectMedia } from "./media";
 import type { PoolClient } from "pg";
@@ -361,6 +364,14 @@ export async function handle(request: Request, parts: string[]) {
         );
       const videoId =
         input.kind === "youtube" ? youtubeId(input.url || "") : null;
+      if (input.transcriptionMode === "ai") {
+        requireAI();
+        if (!videoId || input.rights !== "public_link" || input.text)
+          throw new AppError(
+            "INVALID_TRANSCRIPTION_INTENT",
+            "A transcrição automática exige apenas um link público do YouTube.",
+          );
+      }
       if (input.text && input.rights === "public_link")
         throw new AppError(
           "RIGHTS_REQUIRED",
@@ -384,7 +395,7 @@ export async function handle(request: Request, parts: string[]) {
         if (existing) return { sourceId: existing.id, existing: true };
         const source = (
           await c.query(
-            "INSERT INTO sources(user_id,kind,title,author,language,url,video_id,rights,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id",
+            "INSERT INTO sources(user_id,kind,title,author,language,url,video_id,rights,status,transcription_mode) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id",
             [
               uid,
               input.kind,
@@ -395,6 +406,7 @@ export async function handle(request: Request, parts: string[]) {
               videoId,
               input.rights,
               segments.length ? "text_ready" : "no_transcript",
+              input.transcriptionMode,
             ],
           )
         ).rows[0];
@@ -405,25 +417,32 @@ export async function handle(request: Request, parts: string[]) {
             [source.id, i, s.startMs, s.endMs, s.text, s.timeAccuracy],
           );
         }
+        const jobStatus =
+          (videoId && integrationStatus().youtube) ||
+          (integrationStatus().ai && segments.length)
+            ? "queued"
+            : segments.length
+              ? "awaiting_configuration"
+              : "no_transcript";
         const job = (
           await c.query(
             "INSERT INTO jobs(user_id,source_id,kind,status,error_message) VALUES($1,$2,'prepare',$3,$4) RETURNING id",
             [
               uid,
               source.id,
-              integrationStatus().ai && segments.length
-                ? "queued"
-                : "awaiting_configuration",
-              integrationStatus().message,
+              jobStatus,
+              jobStatus === "queued"
+                ? null
+                : jobStatus === "no_transcript"
+                  ? "Adicione uma legenda autorizada para estudar os trechos."
+                  : integrationStatus().message,
             ],
           )
         ).rows[0];
         await c.query("INSERT INTO job_events(job_id,data) VALUES($1,$2)", [
           job.id,
           JSON.stringify({
-            status: integrationStatus().ai
-              ? "queued"
-              : "awaiting_configuration",
+            status: jobStatus,
           }),
         ]);
         return { sourceId: source.id, jobId: job.id };
@@ -445,7 +464,72 @@ export async function handle(request: Request, parts: string[]) {
           "SELECT * FROM jobs WHERE source_id=$1 ORDER BY created_at DESC LIMIT 5",
           [id],
         );
-        return json({ source, segments, units, jobs });
+        let transcriptionEstimate: {
+          available: boolean;
+          amount: number | null;
+          remaining: number | null;
+          durationLimitMs: number;
+          reason: string | null;
+        } = {
+          available: false,
+          amount: null,
+          remaining: null,
+          durationLimitMs: MAX_VIDEO_TRANSCRIPTION_MS,
+          reason: integrationStatus().message,
+        };
+        if (source.kind === "youtube" && integrationStatus().ai) {
+          const accountUsage = await usage(uid);
+          const videoStatus = videoIntegrationStatus();
+          const inputPrice = videoStatus.input;
+          const outputPrice = videoStatus.output;
+          const remaining = Math.max(
+            0,
+            accountUsage.limit - accountUsage.confirmed - accountUsage.reserved,
+          );
+          try {
+            validateVideoTranscriptionDuration(Number(source.duration_ms));
+            if (!videoStatus.ready)
+              throw new AppError(
+                "PRICES_REVIEW_REQUIRED",
+                "Revise os preços do modelo de vídeo antes de transcrever.",
+              );
+            const amountMicros = videoTranscriptionEstimateMicros(
+              Number(source.duration_ms),
+              inputPrice,
+              outputPrice,
+            );
+            const amount = amountMicros / 1e6;
+            const reason =
+              source.status === "unavailable"
+                ? "O vídeo não está disponível para incorporação."
+                : source.rights !== "public_link"
+                  ? "Confirme o uso do link público."
+                  : segments.length
+                    ? "Esta fonte já possui uma transcrição."
+                    : amount > remaining
+                      ? "O limite mensal disponível é insuficiente."
+                      : null;
+            transcriptionEstimate = {
+              available: !reason,
+              amount,
+              remaining,
+              durationLimitMs: MAX_VIDEO_TRANSCRIPTION_MS,
+              reason,
+            };
+          } catch (error) {
+            transcriptionEstimate = {
+              available: false,
+              amount: null,
+              remaining,
+              durationLimitMs: MAX_VIDEO_TRANSCRIPTION_MS,
+              reason:
+                error instanceof AppError
+                  ? error.message
+                  : "Não foi possível estimar a transcrição.",
+            };
+          }
+        }
+        return json({ source, segments, units, jobs, transcriptionEstimate });
       }
       if (method === "GET" && action === "segments") {
         const cursor = Math.max(0, Number(url.searchParams.get("cursor") || 0));
@@ -467,7 +551,23 @@ export async function handle(request: Request, parts: string[]) {
         return json({ saved: true });
       }
       if (method === "POST" && action === "prepare") {
+        if (source.status === "unavailable")
+          throw new AppError(
+            "SOURCE_UNAVAILABLE",
+            "O vídeo não está disponível para incorporação.",
+          );
         requireAI();
+        if (
+          !(
+            await query("SELECT 1 FROM segments WHERE source_id=$1 LIMIT 1", [
+              id,
+            ])
+          ).length
+        )
+          throw new AppError(
+            "NO_TRANSCRIPT",
+            "Adicione uma legenda autorizada antes de preparar uma atividade.",
+          );
         return json(
           await idempotent(uid, "prepare", key, { id }, async (c) => {
             const j = (
@@ -481,6 +581,74 @@ export async function handle(request: Request, parts: string[]) {
           202,
         );
       }
+      if (method === "POST" && action === "transcribe") {
+        requireAI();
+        z.object({ consent: z.literal(true) }).parse(await body(request));
+        if (source.kind !== "youtube" || !source.video_id || !source.url)
+          throw new AppError(
+            "INVALID_VIDEO_SOURCE",
+            "A transcrição por URL exige um vídeo válido do YouTube.",
+          );
+        if (source.status === "unavailable")
+          throw new AppError(
+            "SOURCE_UNAVAILABLE",
+            "O vídeo não está disponível para incorporação.",
+          );
+        if (source.rights !== "public_link")
+          throw new AppError(
+            "RIGHTS_REQUIRED",
+            "Confirme o uso do link público antes de transcrever.",
+          );
+        validateVideoTranscriptionDuration(Number(source.duration_ms));
+        return json(
+          await idempotent(uid, "transcribe", key, { id }, async (c) => {
+            await sourceFor(uid, id, c);
+            if (
+              (
+                await c.query(
+                  "SELECT 1 FROM segments WHERE source_id=$1 LIMIT 1",
+                  [id],
+                )
+              ).rowCount
+            )
+              throw new AppError(
+                "TRANSCRIPT_EXISTS",
+                "Esta fonte já possui uma transcrição.",
+              );
+            const active = (
+              await c.query(
+                "SELECT id FROM jobs WHERE source_id=$1 AND kind='transcribe' AND status IN ('queued','processing') ORDER BY created_at DESC LIMIT 1",
+                [id],
+              )
+            ).rows[0];
+            if (active) return { jobId: active.id, existing: true };
+            const job = (
+              await c.query(
+                "INSERT INTO jobs(user_id,source_id,kind,status,total,payload) VALUES($1,$2,'transcribe','queued',3,$3) RETURNING id",
+                [
+                  uid,
+                  id,
+                  JSON.stringify({
+                    videoId: source.video_id,
+                    durationMs: source.duration_ms,
+                    consentAt: new Date().toISOString(),
+                  }),
+                ],
+              )
+            ).rows[0];
+            await c.query(
+              "UPDATE sources SET status='transcribing',transcription_mode='ai',transcription_requested_at=now(),updated_at=now() WHERE id=$1",
+              [id],
+            );
+            await c.query("INSERT INTO job_events(job_id,data) VALUES($1,$2)", [
+              job.id,
+              JSON.stringify({ status: "queued", completed: 0, total: 3 }),
+            ]);
+            return { jobId: job.id };
+          }),
+          202,
+        );
+      }
       if (method === "POST" && action === "segments") {
         const v = z
           .object({
@@ -489,6 +657,11 @@ export async function handle(request: Request, parts: string[]) {
           })
           .parse(await body(request));
         const parsed = parseContent(v.text);
+        if (!parsed.length)
+          throw new AppError(
+            "EMPTY_CONTENT",
+            "Adicione uma legenda com texto antes de salvar.",
+          );
         return json(
           await idempotent(uid, "segments", key, { id, ...v }, async (c) => {
             await c.query("SELECT id FROM sources WHERE id=$1 FOR UPDATE", [
@@ -518,7 +691,7 @@ export async function handle(request: Request, parts: string[]) {
               );
             }
             await c.query(
-              "UPDATE sources SET revision=revision+1,rights=$2,status='text_ready' WHERE id=$1",
+              "UPDATE sources SET revision=revision+1,rights=$2,status=CASE WHEN status='unavailable' THEN status ELSE 'text_ready' END WHERE id=$1",
               [id, v.rights],
             );
             return { saved: true };
@@ -1189,13 +1362,13 @@ export async function handle(request: Request, parts: string[]) {
       if (segment.translation)
         return json({ text: segment.translation, origin: segment.origin });
       requireAI();
-      const text = await gemini.explain(
+      const text = await textAI.explain(
         uid,
         segment.text,
         "Traduza apenas esta frase para português.",
       );
       await query("UPDATE segments SET translation=$2 WHERE id=$1", [id, text]);
-      return json({ text, origin: "gemini" });
+      return json({ text, origin: integrationStatus().provider });
     }
     if (resource === "usage" && method === "GET") return json(await usage(uid));
     if (resource === "progress" && method === "GET")

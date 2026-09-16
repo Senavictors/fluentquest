@@ -16,6 +16,8 @@ connection.pathname = `/${dbName}`;
 process.env.DATABASE_URL = connection.toString();
 process.env.DATA_DIR = `./data/tests/${dbName}`;
 process.env.AI_ENABLED = "false";
+// Prevent developer credentials from making metadata requests in isolated tests.
+delete process.env.YOUTUBE_API_KEY;
 process.env.FQ_OWNER_SETUP = "true";
 const { migrate } = await import("./migrate");
 await migrate();
@@ -25,6 +27,7 @@ const { handle } = await import("../src/server/api");
 const { reserveBudget, settleBudget } = await import("../src/server/budget");
 const { prepare, maintenance } = await import("../src/worker");
 const { boss } = await import("../src/server/queue");
+const { youtube, gemini } = await import("../src/server/providers");
 let passed = 0;
 const ok = (label: string) => {
   passed++;
@@ -101,6 +104,246 @@ try {
     "INTEGRATION_NOT_CONFIGURED",
   );
   ok("IA desligada sem resposta simulada");
+  const videoInput = {
+    kind: "youtube",
+    title: "Fixture",
+    author: "Fixture",
+    language: "en-US",
+    url: "https://youtu.be/abcdefghijk",
+    rights: "public_link",
+    consent: true,
+  };
+  const video = await request("sources", "POST", videoInput);
+  assert.equal(video.status, 202);
+  let videoDetail = (await request(`sources/${video.data.sourceId}`)).data;
+  assert.equal(videoDetail.source.status, "no_transcript");
+  assert.equal(videoDetail.jobs[0].status, "no_transcript");
+  ok("Link sem credenciais preserva estado sem transcrição");
+  const originalGet = youtube.get;
+  const originalVideoTranscribe = gemini.transcribeVideo;
+  process.env.YOUTUBE_API_KEY = "fixture-only";
+  try {
+    youtube.get = async () => ({
+      title: "Metadata fixture",
+      author: "Fixture author",
+      durationMs: 3723000,
+      available: true,
+    });
+    const metadataVideo = await request("sources", "POST", {
+      ...videoInput,
+      url: "https://youtu.be/abcdefghijl",
+    });
+    assert.equal(metadataVideo.status, 202);
+    const event = (
+      await query("SELECT data FROM job_events WHERE job_id=$1", [
+        metadataVideo.data.jobId,
+      ])
+    )[0];
+    assert.equal(event.data.status, "queued");
+    await prepare(metadataVideo.data.jobId);
+    const detail = (await request(`sources/${metadataVideo.data.sourceId}`))
+      .data;
+    assert.equal(detail.source.title, "Metadata fixture");
+    assert.equal(detail.source.duration_ms, 3723000);
+    assert.equal(detail.source.status, "no_transcript");
+    assert.equal(detail.jobs[0].status, "no_transcript");
+    assert.equal(
+      (await query("SELECT count(*)::int AS n FROM budget_reservations"))[0].n,
+      0,
+    );
+    ok("Metadados independem de IA e não criam reserva de inferência");
+    process.env.AI_ENABLED = "true";
+    process.env.GEMINI_API_KEY = "fixture-only";
+    process.env.AI_PRICES_REVIEWED_ON = new Date().toISOString().slice(0, 10);
+    process.env.GEMINI_INPUT_USD_PER_MILLION = "0.3";
+    process.env.GEMINI_OUTPUT_USD_PER_MILLION = "2.5";
+    youtube.get = async () => ({
+      title: "Transcription fixture",
+      author: "Fixture author",
+      durationMs: 495000,
+      available: true,
+    });
+    const transcriptionVideo = await request("sources", "POST", {
+      ...videoInput,
+      url: "https://youtu.be/abcdefghijn",
+      transcriptionMode: "ai",
+    });
+    await prepare(transcriptionVideo.data.jobId);
+    const estimate = (
+      await request(`sources/${transcriptionVideo.data.sourceId}`)
+    ).data.transcriptionEstimate;
+    assert.equal(estimate.available, true);
+    assert.ok(estimate.amount > 0 && estimate.amount < 0.1);
+    assert.equal(
+      (
+        await request(
+          `sources/${transcriptionVideo.data.sourceId}/transcribe`,
+          "POST",
+          { consent: false },
+        )
+      ).status,
+      422,
+    );
+    gemini.transcribeVideo = async () => ({
+      language: "en",
+      segments: [
+        { startMs: 0, endMs: 12000, text: "Automatic fixture transcript." },
+        { startMs: 12000, endMs: 25000, text: "A second study segment." },
+      ],
+    });
+    const transcription = await request(
+      `sources/${transcriptionVideo.data.sourceId}/transcribe`,
+      "POST",
+      { consent: true },
+    );
+    assert.equal(transcription.status, 202);
+    await prepare(transcription.data.jobId);
+    const transcribed = (
+      await request(`sources/${transcriptionVideo.data.sourceId}`)
+    ).data;
+    assert.equal(transcribed.source.status, "text_ready");
+    assert.equal(transcribed.source.transcript_provider, "gemini");
+    assert.equal(transcribed.source.transcript_reviewed, false);
+    assert.equal(transcribed.segments.length, 2);
+    assert.equal(transcribed.segments[0].origin, "provider_video_url");
+    assert.equal(transcribed.segments[0].time_accuracy, "approximate");
+    assert.equal(transcribed.segments[0].quality_status, "ai_unreviewed");
+    ok("Transcrição por URL exige consentimento e persiste proveniência atômica");
+
+    const failingVideo = await request("sources", "POST", {
+      ...videoInput,
+      url: "https://youtu.be/abcdefghijo",
+      transcriptionMode: "ai",
+    });
+    await prepare(failingVideo.data.jobId);
+    gemini.transcribeVideo = async () => {
+      throw new Error("fixture failure");
+    };
+    const failingJob = await request(
+      `sources/${failingVideo.data.sourceId}/transcribe`,
+      "POST",
+      { consent: true },
+    );
+    await prepare(failingJob.data.jobId);
+    assert.equal(
+      (
+        await query(
+          "SELECT count(*)::int AS n FROM segments WHERE source_id=$1",
+          [failingVideo.data.sourceId],
+        )
+      )[0].n,
+      0,
+    );
+    ok("Falha do provedor não salva transcrição parcial");
+
+    youtube.get = async () => ({
+      title: "Long transcription fixture",
+      author: "Fixture",
+      durationMs: 900001,
+      available: true,
+    });
+    const longVideo = await request("sources", "POST", {
+      ...videoInput,
+      url: "https://youtu.be/abcdefghijp",
+      transcriptionMode: "ai",
+    });
+    await prepare(longVideo.data.jobId);
+    assert.equal(
+      (
+        await request(
+          `sources/${longVideo.data.sourceId}/transcribe`,
+          "POST",
+          { consent: true },
+        )
+      ).data.code,
+      "VIDEO_TOO_LONG",
+    );
+    ok("Duração excessiva é bloqueada antes de criar job de transcrição");
+
+    youtube.get = async () => ({
+      title: "Unavailable fixture",
+      author: "Fixture",
+      durationMs: 60000,
+      available: false,
+    });
+    const unavailable = await request("sources", "POST", {
+      ...videoInput,
+      url: "https://youtu.be/abcdefghijm",
+    });
+    await prepare(unavailable.data.jobId);
+    assert.equal(
+      (await request(`sources/${unavailable.data.sourceId}`)).data.source
+        .status,
+      "unavailable",
+    );
+    assert.equal(
+      (
+        await request(
+          `sources/${unavailable.data.sourceId}/prepare`,
+          "POST",
+          {},
+        )
+      ).data.code,
+      "SOURCE_UNAVAILABLE",
+    );
+    assert.equal(
+      (
+        await request(`sources/${unavailable.data.sourceId}/segments`, "POST", {
+          text: "Authorized caption.",
+          rights: "licensed",
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (await request(`sources/${unavailable.data.sourceId}`)).data.source
+        .status,
+      "unavailable",
+    );
+    ok("Vídeo não incorporável permanece indisponível após receber legenda");
+  } finally {
+    youtube.get = originalGet;
+    gemini.transcribeVideo = originalVideoTranscribe;
+    process.env.AI_ENABLED = "false";
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.AI_PRICES_REVIEWED_ON;
+    delete process.env.GEMINI_INPUT_USD_PER_MILLION;
+    delete process.env.GEMINI_OUTPUT_USD_PER_MILLION;
+    delete process.env.YOUTUBE_API_KEY;
+  }
+  assert.equal(
+    (
+      await request(`sources/${video.data.sourceId}/segments`, "POST", {
+        text: "   ",
+        rights: "licensed",
+      })
+    ).data.code,
+    "EMPTY_CONTENT",
+  );
+  const captionKey = randomUUID();
+  const captionBody = {
+    text: "1\n00:00:01,000 --> 00:00:03,000\nAuthorized fixture caption.",
+    rights: "licensed",
+  };
+  await request(
+    `sources/${video.data.sourceId}/segments`,
+    "POST",
+    captionBody,
+    captionKey,
+  );
+  await request(
+    `sources/${video.data.sourceId}/segments`,
+    "POST",
+    captionBody,
+    captionKey,
+  );
+  videoDetail = (await request(`sources/${video.data.sourceId}`)).data;
+  assert.equal(videoDetail.segments.length, 1);
+  assert.equal(videoDetail.segments[0].origin, "user_upload");
+  assert.equal(videoDetail.segments[0].time_accuracy, "approximate");
+  assert.equal(videoDetail.source.rights, "licensed");
+  assert.equal(videoDetail.source.status, "text_ready");
+  ok("Legenda autorizada mantém direitos, tempos aproximados e idempotência");
   const s = await request("sessions", "POST", { sourceId, duration: 25 });
   assert.equal(s.status, 200);
   await request(`sessions/${s.data.id}`, "PATCH", {

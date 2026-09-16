@@ -339,10 +339,26 @@ export function Preferences() {
           <div>
             <span>
               <strong>Gemini</strong>
-              <small>Tutor, atividades e feedback de fala</small>
+              <small>Vídeo por URL e feedback de fala</small>
             </span>
-            <span className={`status ${data.integrations.ai ? "good" : ""}`}>
-              {data.integrations.ai ? "Configurado" : "Não configurado"}
+            <span
+              className={`status ${data.integrations.gemini ? "good" : ""}`}
+            >
+              {data.integrations.gemini ? "Configurado" : "Não configurado"}
+            </span>
+          </div>
+          <div>
+            <span>
+              <strong>OpenAI</strong>
+              <small>
+                Tutor, atividades e traduções; provedor de texto atual:{" "}
+                {data.integrations.provider}
+              </small>
+            </span>
+            <span
+              className={`status ${data.integrations.openai ? "good" : ""}`}
+            >
+              {data.integrations.openai ? "Configurado" : "Não configurado"}
             </span>
           </div>
           <div>
@@ -359,11 +375,11 @@ export function Preferences() {
           <details>
             <summary>Como conectar depois</summary>
             <p>
-              Configure <code>GEMINI_API_KEY</code>, revise os preços e registre{" "}
-              <code>AI_PRICES_REVIEWED_ON</code> no arquivo{" "}
-              <code>.env.local</code>. Ative <code>AI_ENABLED=true</code> e
-              reinicie web e worker. Para metadados, configure{" "}
-              <code>YOUTUBE_API_KEY</code>.
+              Configure um provedor de texto no arquivo <code>.env.local</code>,
+              revise seus preços e escolha <code>AI_TEXT_PROVIDER</code> como{" "}
+              <code>gemini</code> ou <code>openai</code>. Ative{" "}
+              <code>AI_ENABLED=true</code> e reinicie web e worker. Para
+              metadados, configure <code>YOUTUBE_API_KEY</code>.
             </p>
             <p>
               Consulte o guia de integrações do projeto antes de ativar chamadas

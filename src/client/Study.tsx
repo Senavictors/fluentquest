@@ -25,7 +25,13 @@ import {
 } from "lucide-react";
 import { PageHead, Empty, useApp } from "./App";
 import { api, clock } from "./http";
-import type { Source, Segment, Unit, Vocabulary } from "./types";
+import type {
+  Source,
+  Segment,
+  TranscriptionEstimate,
+  Unit,
+  Vocabulary,
+} from "./types";
 const statuses: Record<string, string> = {
   ready: "Pronto",
   text_ready: "Texto disponível",
@@ -33,6 +39,7 @@ const statuses: Record<string, string> = {
   requested: "Solicitado",
   queued: "Na fila",
   processing: "Preparando",
+  transcribing: "Transcrevendo",
   partial_ready: "Parcialmente pronto",
   awaiting_configuration: "Aguardando configuração",
   needs_review: "Requer revisão",
@@ -179,13 +186,16 @@ export function Library() {
   );
 }
 function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
-  const { run, busy } = useApp();
+  const { run, busy, data } = useApp();
   const [kind, setKind] = useState("youtube"),
     [title, setTitle] = useState(""),
     [author, setAuthor] = useState("Material próprio"),
     [url, setUrl] = useState(""),
     [text, setText] = useState(""),
     [rights, setRights] = useState("owned"),
+    [transcriptionMode, setTranscriptionMode] = useState<"manual" | "ai">(
+      "manual",
+    ),
     [consent, setConsent] = useState(false),
     [file, setFile] = useState<File | null>(null);
   return (
@@ -220,8 +230,16 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
               title,
               author,
               url: kind === "youtube" ? url : undefined,
-              text: text || undefined,
-              rights: kind === "youtube" && !text ? "public_link" : rights,
+              text:
+                kind === "youtube" && transcriptionMode === "ai"
+                  ? undefined
+                  : text || undefined,
+              rights:
+                kind === "youtube" && (transcriptionMode === "ai" || !text)
+                  ? "public_link"
+                  : rights,
+              transcriptionMode:
+                kind === "youtube" ? transcriptionMode : "manual",
               consent,
               language: "en-US",
             });
@@ -270,48 +288,83 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
         </label>
       </div>
       {kind === "youtube" && (
-        <label>
-          Link do YouTube
-          <input
-            type="url"
-            required
-            placeholder="https://www.youtube.com/watch?v=…"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-        </label>
-      )}
-      {kind !== "media" && (
         <>
           <label>
-            {kind === "youtube"
-              ? "Legenda autorizada (opcional)"
-              : "Texto ou legenda em inglês"}
-            <textarea
-              rows={5}
-              required={kind === "text"}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Cole seu texto, uma legenda SRT ou VTT…"
-              maxLength={500000}
-            />
-          </label>
-          <label className="file-label">
-            <Upload size={16} /> Carregar TXT, SRT ou VTT
+            Link do YouTube
             <input
-              type="file"
-              accept=".txt,.srt,.vtt"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (f) {
-                  if (f.size > 600000) return;
-                  setText(await f.text());
-                }
-              }}
+              type="url"
+              required
+              placeholder="https://www.youtube.com/watch?v=…"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
             />
           </label>
+          <fieldset className="transcription-choice">
+            <legend>Como obter o texto</legend>
+            <label>
+              <input
+                type="radio"
+                name="transcription-mode"
+                checked={transcriptionMode === "manual"}
+                onChange={() => setTranscriptionMode("manual")}
+              />
+              <span>
+                <strong>Colar legenda autorizada</strong>
+                <small>Sem custo de IA.</small>
+              </span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="transcription-mode"
+                checked={transcriptionMode === "ai"}
+                disabled={!data.integrations.ai}
+                onChange={() => setTranscriptionMode("ai")}
+              />
+              <span>
+                <strong>Transcrever com Gemini</strong>
+                <small>
+                  {data.integrations.ai
+                    ? "Você verá o custo máximo antes de confirmar."
+                    : "Integração não configurada."}
+                </small>
+              </span>
+            </label>
+          </fieldset>
         </>
       )}
+      {kind !== "media" &&
+        !(kind === "youtube" && transcriptionMode === "ai") && (
+          <>
+            <label>
+              {kind === "youtube"
+                ? "Legenda autorizada (opcional)"
+                : "Texto ou legenda em inglês"}
+              <textarea
+                rows={5}
+                required={kind === "text"}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Cole seu texto, uma legenda SRT ou VTT…"
+                maxLength={500000}
+              />
+            </label>
+            <label className="file-label">
+              <Upload size={16} /> Carregar TXT, SRT ou VTT
+              <input
+                type="file"
+                accept=".txt,.srt,.vtt"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (f) {
+                    if (f.size > 600000) return;
+                    setText(await f.text());
+                  }
+                }}
+              />
+            </label>
+          </>
+        )}
       {kind === "media" && (
         <label>
           Áudio ou vídeo próprio (até 25 MB e 30 minutos)
@@ -341,14 +394,17 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
         />
         <span>
           {kind === "youtube" && !text
-            ? "Entendo que o vídeo será reproduzido pelo player oficial e não será baixado."
+            ? transcriptionMode === "ai"
+              ? "Entendo que o link público será verificado agora. Antes da transcrição, confirmarei o envio ao Gemini e o custo máximo."
+              : "Entendo que o vídeo será reproduzido pelo player oficial e não será baixado."
             : "Confirmo que posso utilizar este conteúdo na minha biblioteca pessoal."}
         </span>
       </label>
       <div className="form-footer">
         <p className="small quiet">
-          Sem IA conectada, o texto e a reprodução ficam disponíveis. Não há
-          transcrição automática.
+          {kind === "youtube" && transcriptionMode === "ai"
+            ? "O vídeo não será baixado pelo FluentQuest. A URL pública será processada pelo Gemini somente após sua confirmação."
+            : "Texto e reprodução continuam disponíveis sem IA."}
         </p>
         <button className="primary" disabled={busy}>
           {busy ? "Adicionando…" : "Adicionar à biblioteca"}
@@ -426,7 +482,7 @@ function Player({
     };
   }, [source.id, source.kind, playerRef]);
   useEffect(() => {
-    if (!source.video_id) return;
+    if (!source.video_id || source.status === "unavailable") return;
     let active = true;
     let timer: ReturnType<typeof setInterval> | undefined;
     void loadYouTube().then(() => {
@@ -463,7 +519,17 @@ function Player({
       playerRef.current?.destroy();
       playerRef.current = null;
     };
-  }, [source.id, source.video_id, playerRef]);
+  }, [source.id, source.video_id, source.status, playerRef]);
+  if (source.status === "unavailable")
+    return (
+      <div className="notice" role="status">
+        <p>
+          Este vídeo não está disponível para reprodução incorporada. Escolha
+          outra fonte para estudar.
+        </p>
+        <Link href="/biblioteca">Escolher outra fonte</Link>
+      </div>
+    );
   if (source.video_id)
     return (
       <div className="player-area">
@@ -525,11 +591,13 @@ export function Study({ sourceId }: { sourceId: string }) {
       units: Unit[];
       jobs: {
         id: string;
+        kind: string;
         status: string;
         error_message: string | null;
         completed: number;
         total: number | null;
       }[];
+      transcriptionEstimate: TranscriptionEstimate;
     } | null>(null),
     [selectedId, setSelectedId] = useState(
       params.get("segment") || savedContext.segment || "",
@@ -551,7 +619,11 @@ export function Study({ sourceId }: { sourceId: string }) {
     [time, setTime] = useState(0),
     [loop, setLoop] = useState(false),
     [caption, setCaption] = useState(""),
+    [captionRights, setCaptionRights] = useState<"owned" | "licensed">(
+      "licensed",
+    ),
     [captionOpen, setCaptionOpen] = useState(false),
+    [transcriptionConsent, setTranscriptionConsent] = useState(false),
     [fatal, setFatal] = useState(""),
     [page, setPage] = useState(0),
     [cardMode, setCardMode] = useState("production");
@@ -755,33 +827,39 @@ export function Study({ sourceId }: { sourceId: string }) {
         <div className="notice" role="status">
           <p>
             {lesson.jobs[0]?.status === "processing"
-              ? "Preparando uma atividade a partir dos trechos disponíveis…"
+              ? lesson.jobs[0]?.kind === "transcribe"
+                ? "O Gemini está transcrevendo o vídeo. Os trechos serão salvos juntos ao concluir."
+                : "Verificando a fonte e preparando os trechos disponíveis…"
               : lesson.jobs[0]?.status === "queued"
-                ? "Preparo na fila. O worker continuará mesmo se você sair desta tela."
+                ? lesson.jobs[0]?.kind === "transcribe"
+                  ? "Transcrição na fila. O worker continuará mesmo se você sair desta tela."
+                  : "Preparo na fila. O worker continuará mesmo se você sair desta tela."
                 : unit
                   ? "Atividade disponível para este material. Você pode continuar estudando os demais trechos."
                   : lesson.jobs[0]?.error_message ||
                     "Atividades automáticas: integração não configurada. Você pode selecionar expressões, criar cartões e praticar por conta própria."}
           </p>
-          {data.integrations.ai && lesson.segments.length > 0 && (
-            <button
-              className="text-button"
-              disabled={
-                busy ||
-                lesson.jobs.some((j) =>
-                  ["queued", "processing"].includes(j.status),
-                )
-              }
-              onClick={() =>
-                void run(async () => {
-                  await api(`sources/${sourceId}/prepare`, "POST", {});
-                  await load();
-                })
-              }
-            >
-              {unit ? "Preparar novamente" : "Preparar atividade"}
-            </button>
-          )}
+          {data.integrations.ai &&
+            lesson.source.status !== "unavailable" &&
+            lesson.segments.length > 0 && (
+              <button
+                className="text-button"
+                disabled={
+                  busy ||
+                  lesson.jobs.some((j) =>
+                    ["queued", "processing"].includes(j.status),
+                  )
+                }
+                onClick={() =>
+                  void run(async () => {
+                    await api(`sources/${sourceId}/prepare`, "POST", {});
+                    await load();
+                  })
+                }
+              >
+                {unit ? "Preparar novamente" : "Preparar atividade"}
+              </button>
+            )}
         </div>
       )}
       <div className="study-flow">
@@ -873,14 +951,78 @@ export function Study({ sourceId }: { sourceId: string }) {
           </div>
           {!lesson.segments.length ? (
             <div className="notice">
-              Este conteúdo ainda não tem transcrição. Adicione uma legenda
-              autorizada ou pratique com um cenário independente.
+              <p>
+                Este conteúdo ainda não tem transcrição. Você pode colar uma
+                legenda autorizada ou, em vídeos elegíveis, pedir uma
+                transcrição automática.
+              </p>
+              {lesson.source.kind === "youtube" && (
+                <div className="ai-transcription">
+                  <h3>Transcrever o vídeo com Gemini</h3>
+                  {lesson.transcriptionEstimate.amount != null && (
+                    <p>
+                      Reserva máxima estimada:{" "}
+                      <strong>
+                        US$ {lesson.transcriptionEstimate.amount.toFixed(2)}
+                      </strong>
+                      . Saldo disponível no limite do app: US${" "}
+                      {lesson.transcriptionEstimate.remaining?.toFixed(2)}.
+                    </p>
+                  )}
+                  <p className="small quiet">
+                    A URL pública do YouTube será enviada ao Gemini. Os trechos
+                    gerados terão tempos aproximados e ficarão marcados como não
+                    revisados.
+                  </p>
+                  <label className="check-label">
+                    <input
+                      type="checkbox"
+                      checked={transcriptionConsent}
+                      disabled={!lesson.transcriptionEstimate.available}
+                      onChange={(e) =>
+                        setTranscriptionConsent(e.target.checked)
+                      }
+                    />
+                    Confirmo este envio e o custo máximo estimado.
+                  </label>
+                  <button
+                    className="secondary"
+                    disabled={
+                      busy ||
+                      !transcriptionConsent ||
+                      !lesson.transcriptionEstimate.available ||
+                      lesson.jobs.some((job) =>
+                        ["queued", "processing"].includes(job.status),
+                      )
+                    }
+                    onClick={() =>
+                      void run(async () => {
+                        await api(`sources/${sourceId}/transcribe`, "POST", {
+                          consent: true,
+                        });
+                        setTranscriptionConsent(false);
+                        await load();
+                      })
+                    }
+                  >
+                    Transcrever com Gemini
+                  </button>
+                  {!lesson.transcriptionEstimate.available && (
+                    <p className="small error-text">
+                      {lesson.transcriptionEstimate.reason}
+                    </p>
+                  )}
+                </div>
+              )}
               <button
                 className="text-button"
+                aria-expanded={captionOpen}
+                aria-controls="caption-form"
                 onClick={() => setCaptionOpen(!captionOpen)}
               >
                 Adicionar legenda
               </button>
+              <Link href="/praticar">Praticar com um cenário independente</Link>
             </div>
           ) : (
             <div className="transcript" aria-label="Trechos do conteúdo">
@@ -919,7 +1061,9 @@ export function Study({ sourceId }: { sourceId: string }) {
                         {reveal && <p>{seg.translation}</p>}
                         {seg.time_accuracy === "approximate" && (
                           <small className="quiet">
-                            Tempo aproximado · legenda fornecida
+                            {seg.origin === "provider_video_url"
+                              ? "Transcrição automática não revisada · tempo aproximado"
+                              : "Tempo aproximado · legenda fornecida"}
                           </small>
                         )}
                       </div>
@@ -966,13 +1110,14 @@ export function Study({ sourceId }: { sourceId: string }) {
           )}
           {captionOpen && (
             <form
+              id="caption-form"
               className="caption-form"
               onSubmit={(e) => {
                 e.preventDefault();
                 void run(async () => {
                   await api(`sources/${sourceId}/segments`, "POST", {
                     text: caption,
-                    rights: "owned",
+                    rights: captionRights,
                   });
                   setCaption("");
                   setCaptionOpen(false);
@@ -989,11 +1134,25 @@ export function Study({ sourceId }: { sourceId: string }) {
                   onChange={(e) => setCaption(e.target.value)}
                 />
               </label>
+              <label>
+                Direito de uso da legenda
+                <select
+                  value={captionRights}
+                  onChange={(e) =>
+                    setCaptionRights(e.target.value as "owned" | "licensed")
+                  }
+                >
+                  <option value="licensed">Tenho autorização ou licença</option>
+                  <option value="owned">Sou o autor da legenda</option>
+                </select>
+              </label>
               <label className="check-label">
                 <input type="checkbox" required />
                 Confirmo autoria ou autorização para usar a legenda.
               </label>
-              <button className="secondary">Salvar legenda</button>
+              <button className="secondary" disabled={busy || !caption.trim()}>
+                Salvar legenda
+              </button>
             </form>
           )}
           <div className="study-bottom">
@@ -1263,7 +1422,7 @@ export function Study({ sourceId }: { sourceId: string }) {
                   {unit?.prompt ||
                     "Sem consultar o trecho: explique em inglês a ideia principal e dê um exemplo seu."}
                 </p>
-                {unit?.provenance === "gemini_unreviewed" && (
+                {unit?.provenance?.endsWith("_unreviewed") && (
                   <p className="small quiet">
                     Atividade gerada por IA, sem validação humana.
                   </p>

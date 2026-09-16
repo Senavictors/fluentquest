@@ -10,8 +10,19 @@ export interface Source {
   position_ms: number;
   duration_ms: number | null;
   rights: string;
+  transcription_mode?: "manual" | "ai";
+  transcript_provider?: string | null;
+  transcript_model?: string | null;
+  transcript_reviewed?: boolean;
   segment_count?: number;
   file_key?: string;
+}
+export interface TranscriptionEstimate {
+  available: boolean;
+  amount: number | null;
+  remaining: number | null;
+  durationLimitMs: number;
+  reason: string | null;
 }
 export interface Segment {
   id: string;
@@ -102,7 +113,10 @@ export interface Bootstrap {
   usage: Usage;
   integrations: {
     ai: boolean;
+    provider: "gemini" | "openai";
     youtube: boolean;
+    gemini: boolean;
+    openai: boolean;
     message: string;
     model: string;
   };

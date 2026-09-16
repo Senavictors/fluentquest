@@ -27,6 +27,7 @@ export function Practice() {
     [blob, setBlob] = useState<Blob | null>(null),
     [preview, setPreview] = useState(""),
     [consent, setConsent] = useState(false),
+    [aiConsent, setAiConsent] = useState(false),
     [preserve, setPreserve] = useState(false),
     [records, setRecords] = useState<Recording[]>([]),
     [feedback, setFeedback] = useState<{
@@ -431,6 +432,26 @@ export function Practice() {
           <h2>Suas tentativas</h2>
           <span className="quiet small">{records.length} gravações</span>
         </div>
+        {records.length > 0 && (
+          <div className="notice">
+            <p>
+              O feedback envia sua gravação ao Gemini. No tier gratuito, o
+              provedor pode usar o conteúdo para melhorar seus modelos. Salvar e
+              ouvir a gravação aqui mantém o áudio local.
+            </p>
+            <label className="check-label">
+              <input
+                type="checkbox"
+                checked={aiConsent}
+                onChange={(e) => setAiConsent(e.target.checked)}
+                disabled={!data.integrations.ai}
+              />
+              Autorizo enviar minhas gravações ao Gemini para receber feedback
+              nesta sessão.
+            </label>
+            {!data.integrations.ai && <p>Integração não configurada.</p>}
+          </div>
+        )}
         {!records.length ? (
           <p className="quiet">
             Suas gravações salvas vão aparecer aqui, com a opção de ouvir e
@@ -456,7 +477,7 @@ export function Practice() {
               />
               <button
                 className="text-button"
-                disabled={!data.integrations.ai || busy}
+                disabled={!data.integrations.ai || !aiConsent || busy}
                 onClick={() =>
                   void run(async () => {
                     setFeedback(

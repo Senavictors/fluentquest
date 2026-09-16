@@ -2,7 +2,9 @@ import { chromium } from "@playwright/test";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { parseEnv } from "node:util";
 const root = new URL("../", import.meta.url);
-const env = parseEnv(await readFile(new URL(".env.owner", root), "utf8"));
+const env = process.env.FQ_QA_PASSWORD
+  ? { OWNER_PASSWORD: process.env.FQ_QA_PASSWORD }
+  : parseEnv(await readFile(new URL(".env.owner", root), "utf8"));
 const dir = new URL(".impeccable/review/", root);
 await mkdir(dir, { recursive: true });
 const browser = await chromium.launch({

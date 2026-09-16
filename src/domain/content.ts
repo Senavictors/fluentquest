@@ -117,6 +117,52 @@ export function parseContent(input: string): SegmentInput[] {
     );
   return segments;
 }
+export const MAX_VIDEO_TRANSCRIPTION_MS = 15 * 60 * 1000;
+export function validateVideoTranscriptionDuration(durationMs: number) {
+  if (!Number.isSafeInteger(durationMs) || durationMs <= 0)
+    throw new AppError(
+      "VIDEO_DURATION_REQUIRED",
+      "Aguarde a duração do vídeo ser verificada antes de transcrever.",
+    );
+  if (durationMs > MAX_VIDEO_TRANSCRIPTION_MS)
+    throw new AppError(
+      "VIDEO_TOO_LONG",
+      "A transcrição automática aceita vídeos de até 15 minutos neste piloto.",
+    );
+  return durationMs;
+}
+const videoTranscriptSegment = z.object({
+  startMs: z.number().int().min(0),
+  // Gemini structured output accepts `minimum`, but not JSON Schema's
+  // `exclusiveMinimum`. `min(1)` preserves the same integer constraint.
+  endMs: z.number().int().min(1),
+  text: z.string().trim().min(1).max(1200),
+});
+export const videoTranscript = z
+  .object({
+    language: z.string().trim().min(2).max(20),
+    segments: z.array(videoTranscriptSegment).min(1).max(240),
+  })
+  .superRefine((value, ctx) => {
+    let previousStart = -1;
+    let total = 0;
+    value.segments.forEach((segment, index) => {
+      total += segment.text.length;
+      if (segment.endMs <= segment.startMs || segment.startMs < previousStart)
+        ctx.addIssue({
+          code: "custom",
+          path: ["segments", index],
+          message: "Os trechos devem estar ordenados e ter duração positiva.",
+        });
+      previousStart = segment.startMs;
+    });
+    if (total > 120000)
+      ctx.addIssue({
+        code: "custom",
+        path: ["segments"],
+        message: "A transcrição excede o limite de texto.",
+      });
+  });
 export const sourceInput = z.object({
   kind: z.enum(["youtube", "text", "media"]),
   title: z.string().trim().min(1).max(200),
@@ -125,6 +171,7 @@ export const sourceInput = z.object({
   text: z.string().max(500000).optional(),
   language: z.enum(["en-US", "en-GB"]).default("en-US"),
   rights: z.enum(["owned", "licensed", "public_link"]),
+  transcriptionMode: z.enum(["manual", "ai"]).default("manual"),
   consent: z.literal(true),
 });
 export const cardInput = z.object({

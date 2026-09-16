@@ -4,7 +4,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { parseEnv } from "node:util";
 import { fileURLToPath } from "node:url";
 const root = new URL("../", import.meta.url);
-const env = parseEnv(await readFile(new URL(".env.owner", root), "utf8"));
+const env = process.env.FQ_QA_PASSWORD
+  ? { OWNER_PASSWORD: process.env.FQ_QA_PASSWORD }
+  : parseEnv(await readFile(new URL(".env.owner", root), "utf8"));
 const browser = await chromium.launch({
   headless: true,
   executablePath:
