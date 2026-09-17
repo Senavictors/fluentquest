@@ -163,6 +163,36 @@ describe("Ajuste de tempo da transcrição de vídeo", () => {
       fitTranscriptToDuration([{ startMs: 0, endMs: 837000000 }], 837000),
     ).toThrow();
   });
+
+  it("reescala drift grande em vez de recusar a transcrição inteira", () => {
+    // Caso real de 2026-09-17: 990 s para um vídeo de 636 s (1,56×). Com o teto
+    // antigo de 1,5 isso era recusado, e a chamada paga voltava sem nada.
+    const fitted = fitTranscriptToDuration(
+      [
+        { startMs: 0, endMs: 12000 },
+        { startMs: 600000, endMs: 990000 },
+      ],
+      636000,
+    );
+    expect(fitted.at(-1)!.endMs).toBe(636000);
+    expect(fitted.every((s) => s.endMs <= 636000 && s.startMs >= 0)).toBe(true);
+  });
+
+  it("ancora no fim do último trecho, não no maior endMs de todos", () => {
+    // O trecho do meio está fora da curva. Ele é aparado na duração; os outros
+    // dois, que já cabiam, ficam intactos — antes um deles derrubava tudo.
+    const fitted = fitTranscriptToDuration(
+      [
+        { startMs: 0, endMs: 12000 },
+        { startMs: 300000, endMs: 9990000 },
+        { startMs: 600000, endMs: 630000 },
+      ],
+      636000,
+    );
+    expect(fitted[0]).toEqual({ startMs: 0, endMs: 12000 });
+    expect(fitted[1].endMs).toBe(636000);
+    expect(fitted[2]).toEqual({ startMs: 600000, endMs: 630000 });
+  });
 });
 
 describe("Piso de cobertura da transcrição de vídeo", () => {

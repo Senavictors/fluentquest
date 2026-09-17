@@ -167,10 +167,16 @@ export const videoTranscript = z
 // 2026-09-16, um vídeo de 837 s voltou com o trecho final em 936 s (~12% a
 // mais), sendo que esse trecho é o encerramento real do vídeo. O drift é
 // acumulativo e aproximadamente linear, então reescalar a linha do tempo
-// inteira alinha melhor do que cortar a cauda. Acima de MAX_TIME_DRIFT o
-// resultado deixa de ser drift e vira erro de unidade (segundos no lugar de
-// milissegundos, por exemplo) — aí continua sendo recusado.
-export const MAX_TIME_DRIFT = 1.5;
+// inteira alinha melhor do que cortar a cauda.
+//
+// O teto separa drift de erro de unidade, e 1,5 não separava coisa nenhuma: um
+// erro de unidade real é 1000× (segundos lidos como milissegundos) ou 60000×
+// (minutos), não 1,6×. Em 2026-09-17 um vídeo de 636 s voltou acima de 1,5×
+// cinco vezes seguidas — cinco chamadas pagas, cinco recusas, nenhum texto. O
+// modelo simplesmente conta o tempo pior em alguns vídeos do que em outros, e
+// isso é drift, não lixo. 10× deixa uma folga larga e inequívoca antes do erro
+// de unidade.
+export const MAX_TIME_DRIFT = 10;
 // Piso de cobertura. Uma resposta que descreve só o começo do vídeo é
 // truncamento, não transcrição: em 2026-09-17 o Gemini devolveu 5 trechos
 // cobrindo 111 s de um vídeo de 837 s (13%) — JSON válido, schema satisfeito,
@@ -198,24 +204,36 @@ export function assertTranscriptCoverage(
 export function fitTranscriptToDuration<
   T extends { startMs: number; endMs: number },
 >(segments: T[], durationMs: number): T[] {
-  const lastEnd = Math.max(...segments.map((segment) => segment.endMs));
-  // Tolerância de 2 s absorve arredondamento sem reescalar à toa.
-  if (lastEnd <= durationMs + 2000) return segments;
+  // A âncora é o fim do último trecho, não o maior endMs de todos. `startMs`
+  // chega monotônico por contrato (videoTranscript), então o último trecho é o
+  // encerramento real; já um endMs solto no meio da transcrição é defeito de um
+  // trecho e não pode decidir a escala da linha do tempo inteira — muito menos
+  // derrubar a transcrição toda, como acontecia com Math.max.
+  const lastEnd = segments[segments.length - 1].endMs;
   if (lastEnd > durationMs * MAX_TIME_DRIFT)
     throw new AppError(
       "INVALID_TRANSCRIPT_TIME",
-      "A transcrição retornou tempos incompatíveis com a duração do vídeo.",
+      `A transcrição retornou tempos ${Math.round(lastEnd / durationMs)}× maiores que a duração do vídeo. Isso é erro de unidade, não desvio de estimativa, e não há como reescalar.`,
     );
-  const factor = durationMs / lastEnd;
-  return segments.map((segment) => ({
-    ...segment,
-    startMs: Math.round(segment.startMs * factor),
-    // Garante duração positiva mesmo se o arredondamento colapsar o trecho.
-    endMs: Math.max(
-      Math.round(segment.endMs * factor),
-      Math.round(segment.startMs * factor) + 1,
-    ),
-  }));
+  // Tolerância de 2 s absorve arredondamento sem reescalar à toa.
+  const factor = lastEnd > durationMs + 2000 ? durationMs / lastEnd : 1;
+  return segments.map((segment) => {
+    // O corte final mantém todo trecho dentro do vídeo mesmo quando o fator é 1
+    // — é o que neutraliza um endMs isolado fora da curva sem descartar o resto.
+    const startMs = Math.min(
+      Math.round(segment.startMs * factor),
+      durationMs - 1,
+    );
+    return {
+      ...segment,
+      startMs,
+      // Garante duração positiva mesmo se o arredondamento colapsar o trecho.
+      endMs: Math.min(
+        Math.max(Math.round(segment.endMs * factor), startMs + 1),
+        durationMs,
+      ),
+    };
+  });
 }
 // Apoio de estudo de um trecho. Quatro campos discretos em vez de um texto
 // único: a interface precisa hierarquizar a tradução (o que se procura de

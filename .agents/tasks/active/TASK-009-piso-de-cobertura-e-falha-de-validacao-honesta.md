@@ -171,13 +171,21 @@ As três chamadas recusadas foram conciliadas: 5.158, 5.079 e 3.253 tokens de sa
 
 `tests/providers.test.ts` ganhou dois casos: o registro da linha do tempo recusada, e um que documenta a segunda sensibilidade — trechos terminando em 12 s, 9.990 s e 630 s num vídeo de 636 s deixam `lastEndMs` dentro da duração e só `maxEndMs` estoura, e ainda assim tudo é recusado.
 
-### Decisão deliberadamente adiada
+### Decisão adiada e depois revertida
 
-`MAX_TIME_DRIFT` **não foi alterado**. Aumentar o teto às cegas significa aceitar transcrição com tempos mais de 50% errados, reescalados por uma hipótese de linearidade que o próprio `CONTEXT.md` registra como não verificada. A decisão espera o primeiro `AI_REJECTED_TRANSCRIPT` real.
+Numa primeira passagem `MAX_TIME_DRIFT` foi mantido em 1,5 à espera de um `AI_REJECTED_TRANSCRIPT` real. Foi erro de julgamento: o proprietário tentou de novo, a quinta chamada foi cobrada e recusada igual, e o custo de "esperar o dado" passou a ser maior que o de corrigir. Somadas, cinco tentativas nesse vídeo consumiram ~US$ 0,12 sem produzir um trecho.
+
+O teto foi então corrigido pelo que ele de fato precisa discriminar:
+
+- **`MAX_TIME_DRIFT` passou de 1,5 para 10.** 1,5 não separava drift de erro de unidade — erro de unidade é 1000× (segundos lidos como milissegundos) ou 60000× (minutos). 1,5 só recusava vídeo em que o modelo contou o tempo pior que a média. A mensagem do erro agora informa o fator medido.
+- **A âncora do reescalonamento deixou de ser `Math.max` de todos os `endMs` e passou a ser o fim do último trecho.** `startMs` chega monotônico por contrato, então o último trecho é o encerramento real; um `endMs` solto no meio é defeito de um trecho e não pode mais decidir a escala nem derrubar a transcrição inteira.
+- **Todo trecho é aparado dentro de `[0, durationMs]`**, inclusive quando não há reescalonamento. É o que neutraliza o trecho fora da curva sem descartar o resto.
+
+Os dois testes escritos na passagem anterior para documentar o comportamento antigo passaram a falhar — sinal correto — e foram reescritos para o comportamento novo, mais dois testes de domínio.
 
 ### Pendências abertas por este complemento
 
-- Uma transcrição real de `2Bs0Ink_-Uo` com o log novo ligado, para escolher entre as duas correções. Gera custo (~US$ 0,03) e depende de autorização.
+- **Reescalonamento de drift grande não tem ground truth.** Com 1,56× de desvio, o alinhamento no meio do vídeo é hipótese linear, não medição. Os trechos continuam `approximate` e `ai_unreviewed`; se o destaque durante a reprodução ficar visivelmente fora, o caminho honesto é degradar a precisão declarada, não apertar o teto de novo.
 - **Saldo travado:** 10 reservas em estado `unknown` somam 589.697 micros (US$ 0,59) do teto de US$ 1,00, sobra de chamadas ambíguas de 15 e 16/09. O consumo real do mês é US$ 0,19, mas o disponível caiu para US$ 0,22. Precisa de conciliação — assunto separado desta task.
 
 ## Handoff
