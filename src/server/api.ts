@@ -680,12 +680,27 @@ export async function handle(request: Request, parts: string[]) {
         );
       }
       if (method === "POST" && action === "segments") {
+        // `public_link` entrou em 2026-09-17 (ADR-004). Antes só existiam
+        // `owned` e `licensed`, então anexar a legenda automática de um vídeo
+        // público exigia declarar que o material era do proprietário ou
+        // licenciado para ele, e ainda carimbava os trechos como `user_upload`:
+        // três afirmações falsas gravadas justamente nos campos que existem
+        // para registrar a origem. O caso agora tem rótulo próprio, e o preço
+        // de tê-lo é dizer o que ele é — legenda do provedor, não revisada.
         const v = z
           .object({
             text: z.string().max(500000),
-            rights: z.enum(["owned", "licensed"]),
+            rights: z.enum(["owned", "licensed", "public_link"]),
           })
           .parse(await body(request));
+        const publicCaption = v.rights === "public_link";
+        // Não é um caminho para reclassificar fonte: só vale onde o link
+        // público já era o direito declarado na criação da fonte.
+        if (publicCaption && source.rights !== "public_link")
+          throw new AppError(
+            "RIGHTS_MISMATCH",
+            "Legenda de vídeo público só pode ser anexada a uma fonte já registrada como link público.",
+          );
         const parsed = parseContent(v.text);
         if (!parsed.length)
           throw new AppError(
@@ -708,14 +723,19 @@ export async function handle(request: Request, parts: string[]) {
             for (let i = 0; i < parsed.length; i++) {
               const s = parsed[i];
               await c.query(
-                "INSERT INTO segments(source_id,ordinal,start_ms,end_ms,text,origin,time_accuracy,revision) VALUES($1,$2,$3,$4,$5,'user_upload',$6,$7)",
+                "INSERT INTO segments(source_id,ordinal,start_ms,end_ms,text,origin,time_accuracy,quality_status,revision) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
                 [
                   id,
                   next + i,
                   s.startMs,
                   s.endMs,
                   s.text,
+                  publicCaption ? "public_caption" : "user_upload",
                   s.timeAccuracy,
+                  // Legenda de provedor é transcrição de máquina: entra com o
+                  // mesmo estado que a do Gemini, para não virar cartão sem
+                  // alguém ter lido.
+                  publicCaption ? "ai_unreviewed" : "user_supplied",
                   source.revision + 1,
                 ],
               );

@@ -1,5 +1,5 @@
 ---
-id: TASK-011
+id: TASK-012
 title: Cadastro de chaves de API pela interface
 status: completed
 type: feature
@@ -16,10 +16,10 @@ affected_modules:
     migrations,
   ]
 related_use_cases: [Configurar integrações]
-related_adrs: [ADR-004]
+related_adrs: [ADR-005]
 ---
 
-# TASK-011 — Cadastro de chaves de API pela interface
+# TASK-012 — Cadastro de chaves de API pela interface
 
 ## Contexto
 
@@ -97,18 +97,18 @@ Chave cifrada em repouso; fora da exportação de dados (allowlist de tabelas); 
 ## Riscos e rollback
 
 - Trocar `BETTER_AUTH_SECRET` invalida as chaves guardadas; o proprietário recadastra.
-- O cache de chaves é global por processo, correto sob a premissa de proprietário único (ADR-004).
+- O cache de chaves é global por processo, correto sob a premissa de proprietário único (ADR-005).
 - Rollback: `DROP TABLE integration_credentials` e reverter os arquivos; o ambiente volta a ser a única fonte.
 
 ## Registro de execução
 
 ### Alterações realizadas
 
-Migração 007; `src/server/credentials.ts`; leitura de chave em `providers.ts`; rotas em `api.ts`; recarga por job no worker; tela de Ajustes; tipos; CSS; `docs/API.md`; `docs/INTEGRACOES.md`; ADR-004.
+Migração 007; `src/server/credentials.ts`; leitura de chave em `providers.ts`; rotas em `api.ts`; recarga por job no worker; tela de Ajustes; tipos; CSS; `docs/API.md`; `docs/INTEGRACOES.md`; ADR-005.
 
 ### Decisões
 
-ADR-004.
+ADR-005.
 
 ### Divergências
 
@@ -116,11 +116,11 @@ Nenhuma.
 
 ### Pendências
 
-`AI_ENABLED`, `AI_TEXT_PROVIDER` e revisão de preço continuam só no ambiente, por decisão registrada em ADR-004.
+`AI_ENABLED`, `AI_TEXT_PROVIDER` e revisão de preço continuam só no ambiente, por decisão registrada em ADR-005.
 
 ## Validação
 
-`npm run typecheck` sem erros. `npm test`: 62 testes. `npm run test:integration`: 31 cenários, nenhuma chamada de IA. `npm run build`: 4 rotas. `scripts/accessibility-qa.mjs` (porta ajustada para a pré-visualização em 3216, porque 3215 estava ocupada pelo servidor do proprietário): zero violações em nove variantes, incluindo `configuracoes` e `configuracoes-dark-mobile`.
+`npm run typecheck` sem erros. `npm test`: 62 testes. `npm run test:integration`: 32 cenários depois do merge com `main` (ADR-004 / TASK-011, legenda de vídeo público), nenhuma chamada de IA. `npm run build`: 4 rotas. `scripts/accessibility-qa.mjs` (porta ajustada para a pré-visualização em 3216, porque 3215 estava ocupada pelo servidor do proprietário): zero violações em nove variantes, incluindo `configuracoes` e `configuracoes-dark-mobile`.
 
 ## Handoff
 

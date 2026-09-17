@@ -1,7 +1,7 @@
 ---
 estado: real
 fonte: tests/, scripts/integration.ts, scripts/qa-isolated.ts, scripts/source-qa.mjs
-ultima-revisao: 2026-09-17 (TASK-001 a TASK-011)
+ultima-revisao: 2026-09-17 (TASK-001 a TASK-012)
 ---
 
 # Validação e pendências de implementação
@@ -148,15 +148,15 @@ O proprietário autorizou o piloto e registrou uma chave apenas em `.env.local`.
 
 O painel da OpenAI precisa ser consultado após o uso aparecer no provedor antes de declarar a conciliação com faturamento. A transcrição de voz não foi enviada à OpenAI: o adaptador mantém a regra de só concluir avaliações quando há uso retornado e auditável.
 
-## Cadastro de chaves pela interface — 17/09/2026 (TASK-011)
+## Cadastro de chaves pela interface — 17/09/2026 (TASK-012)
 
-Nenhuma chamada a provedor foi feita nesta validação; salvar uma chave não valida a chave contra o provedor, por decisão registrada em ADR-004.
+Nenhuma chamada a provedor foi feita nesta validação; salvar uma chave não valida a chave contra o provedor, por decisão registrada em ADR-005.
 
 | Verificação                    | Resultado                                                                                                                                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run typecheck`            | Passou.                                                                                                                                                                                           |
 | `npm test`                     | **62 testes**, incluindo `tests/credentials.test.ts` (cifra de ida e volta, ausência do valor em claro no registro, precedência sobre o ambiente, segredo trocado, troca de usuário, formato).    |
-| `npm run test:integration`     | **31 cenários**, incluindo "Chave cadastrada pela interface fica cifrada e não volta pela API". Nenhuma chamada de IA.                                                                            |
+| `npm run test:integration`     | **32 cenários** (depois do merge com a legenda de vídeo público), incluindo "Chave cadastrada pela interface fica cifrada e não volta pela API". Nenhuma chamada de IA.                                                                            |
 | `npm run build`                | Passou, quatro rotas compiladas.                                                                                                                                                                  |
 | `scripts/accessibility-qa.mjs` | **Zero violações axe** em nove telas/estados, incluindo `configuracoes` e `configuracoes-dark-mobile`. Executado contra a pré-visualização em `localhost:3216`, porque 3215 estava ocupada.       |
 | Transbordamento em 390 px      | Nenhum elemento de `.settings-page` ultrapassa a largura da janela.                                                                                                                               |

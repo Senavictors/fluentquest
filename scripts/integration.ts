@@ -387,6 +387,39 @@ try {
   assert.equal(videoDetail.source.rights, "licensed");
   assert.equal(videoDetail.source.status, "text_ready");
   ok("Legenda autorizada mantém direitos, tempos aproximados e idempotência");
+  // ADR-004: legenda de vídeo público não vira "material do proprietário".
+  const publicVideo = await request("sources", "POST", {
+    ...videoInput,
+    title: "Fixture link público",
+    url: "https://youtu.be/bcdefghijkl",
+  });
+  assert.equal(
+    (
+      await request(`sources/${publicVideo.data.sourceId}/segments`, "POST", {
+        text: "1\n00:00:01,000 --> 00:00:04,000\nPublic caption fixture.",
+        rights: "public_link",
+      })
+    ).status,
+    200,
+  );
+  const publicDetail = (await request(`sources/${publicVideo.data.sourceId}`))
+    .data;
+  assert.equal(publicDetail.source.rights, "public_link");
+  assert.equal(publicDetail.source.status, "text_ready");
+  assert.equal(publicDetail.segments[0].origin, "public_caption");
+  assert.equal(publicDetail.segments[0].quality_status, "ai_unreviewed");
+  assert.equal(publicDetail.segments[0].time_accuracy, "approximate");
+  // Não serve para reclassificar uma fonte que nasceu com outro direito.
+  assert.equal(
+    (
+      await request(`sources/${sourceId}/segments`, "POST", {
+        text: "1\n00:00:01,000 --> 00:00:03,000\nMismatch fixture.",
+        rights: "public_link",
+      })
+    ).data.code,
+    "RIGHTS_MISMATCH",
+  );
+  ok("Legenda de vídeo público preserva direitos e declara a origem real");
   const s = await request("sessions", "POST", { sourceId, duration: 25 });
   assert.equal(s.status, 200);
   await request(`sessions/${s.data.id}`, "PATCH", {

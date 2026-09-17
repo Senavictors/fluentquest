@@ -16,7 +16,7 @@ Arquivo novo em `migrations/`, no padrão `NNN_descricao.sql`. `scripts/migrate.
 | `004_budget_reservation_provider_model` | Provedor e modelo na reserva de orçamento, para conciliar custo por provedor.                                                                                                      |
 | `005_segment_support`                   | `segments.support jsonb` — apoio de trecho em quatro campos, em vez de texto corrido.                                                                                              |
 | `006_reservation_reconciliation`        | `reconciled_at` e `reconciliation_note` — a saída da reserva ambígua (ADR-003).                                                                                                    |
-| `007_integration_credentials`           | `integration_credentials` — chave de provedor cifrada, cadastrável pela interface (ADR-004).                                                                                       |
+| `007_integration_credentials`           | `integration_credentials` — chave de provedor cifrada, cadastrável pela interface (ADR-005).                                                                                       |
 
 ## Onde cada coisa mora
 
@@ -43,7 +43,7 @@ Arquivos do proprietário (áudio de gravação, mídia própria) vivem em `data
 
 ## Segredo em repouso
 
-`integration_credentials` guarda a chave de cada provedor cifrada com AES-256-GCM, com chave derivada de `BETTER_AUTH_SECRET`. O motivo é o backup: `scripts/backup.ts` despeja o banco inteiro, e um dump com credencial em texto puro transforma cópia de segurança em vazamento. Só os quatro últimos caracteres (`hint`) são legíveis, e a tabela fica fora da allowlist de `GET /api/account/export`. Detalhes em [ADR-004](../../.agents/decisions/ADR-004-chaves-de-api-cifradas-no-banco.md).
+`integration_credentials` guarda a chave de cada provedor cifrada com AES-256-GCM, com chave derivada de `BETTER_AUTH_SECRET`. O motivo é o backup: `scripts/backup.ts` despeja o banco inteiro, e um dump com credencial em texto puro transforma cópia de segurança em vazamento. Só os quatro últimos caracteres (`hint`) são legíveis, e a tabela fica fora da allowlist de `GET /api/account/export`. Detalhes em [ADR-005](../../.agents/decisions/ADR-005-chaves-de-api-cifradas-no-banco.md).
 
 ## Backup e restauração
 

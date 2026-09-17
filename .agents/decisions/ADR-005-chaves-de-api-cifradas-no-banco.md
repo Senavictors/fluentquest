@@ -1,11 +1,11 @@
 ---
-id: ADR-004
+id: ADR-005
 title: Chaves de provedor cadastráveis pela interface, cifradas no banco, com o ambiente como fallback
 status: accepted
 date: 2026-09-17
 ---
 
-# ADR-004 — Chaves de provedor cadastráveis pela interface, cifradas no banco, com o ambiente como fallback
+# ADR-005 — Chaves de provedor cadastráveis pela interface, cifradas no banco, com o ambiente como fallback
 
 ## Contexto
 

@@ -1,7 +1,7 @@
 ---
 estado: real
 fonte: src/client/, src/domain/, src/server/, src/worker.ts
-ultima-revisao: 2026-09-17 (TASK-011; demais seções de 2026-09-14, bootstrap-init)
+ultima-revisao: 2026-09-17 (TASK-012; demais seções de 2026-09-14, bootstrap-init)
 ---
 
 # Componentes
@@ -32,7 +32,7 @@ Nenhum dos dois importa `pg`, Next ou qualquer coisa de `src/server/` — é o q
 
 - **`src/server/providers.ts`** (384 linhas) — `integrationStatus`, `requireAI`, as interfaces `TutorProvider`, `LessonGenerator`, `SpeechTranscriber` e `VideoMetadataProvider`, o adaptador `gemini`, `streamTutor` (SSE), `assessSpeech` e `normalizeUsage`.
 - **`src/server/budget.ts`** (168 linhas) — `budgetPeriod`, `tokenCostMicros`, `reserveBudget` (transacional, com `FOR UPDATE` e teto de duas reservas ativas), `settleBudget`, `failBudget` e `usage`.
-- **`src/server/credentials.ts`** — chaves de provedor cadastradas pelo proprietário: cifra AES-256-GCM derivada de `BETTER_AUTH_SECRET`, cache de processo recarregado por requisição e por job, e precedência sobre a variável de ambiente correspondente (ADR-004). `credential()` é síncrona porque `providerConfig()` e `youtube.get()` são chamados longe de qualquer `userId`.
+- **`src/server/credentials.ts`** — chaves de provedor cadastradas pelo proprietário: cifra AES-256-GCM derivada de `BETTER_AUTH_SECRET`, cache de processo recarregado por requisição e por job, e precedência sobre a variável de ambiente correspondente (ADR-005). `credential()` é síncrona porque `providerConfig()` e `youtube.get()` são chamados longe de qualquer `userId`.
 - **`src/server/queue.ts`** — `boss()`, `emitJob`, `dispatchJobs` sobre `pg-boss`.
 - **`src/server/example.ts`** — pacote autoral de exemplo, explicitamente não atribuído a um vídeo real.
 

@@ -1218,7 +1218,9 @@ export function Study({ sourceId }: { sourceId: string }) {
                             <small className="quiet">
                               {seg.origin === "provider_video_url"
                                 ? "Transcrição automática não revisada · tempo aproximado"
-                                : "Tempo aproximado · legenda fornecida"}
+                                : seg.origin === "public_caption"
+                                  ? "Legenda automática do vídeo público, não revisada · tempo aproximado"
+                                  : "Tempo aproximado · legenda fornecida"}
                             </small>
                           )}
                         </div>
