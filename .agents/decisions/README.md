@@ -9,6 +9,7 @@ Mantido automaticamente por `bootstrap-audit` a cada execução — não edite e
 | ADR-003 | Conciliação manual de reserva ambígua, com estado próprio no livro-razão                              | accepted | 2026-09-17 | [ADR-003-conciliacao-manual-de-reserva-ambigua.md](ADR-003-conciliacao-manual-de-reserva-ambigua.md)                         |
 | ADR-004 | Legenda de vídeo público tem proveniência própria, em vez de se disfarçar de material do proprietário | accepted | 2026-09-17 | [ADR-004-legenda-de-video-publico-com-proveniencia-propria.md](ADR-004-legenda-de-video-publico-com-proveniencia-propria.md) |
 | ADR-005 | Chaves de provedor cadastráveis pela interface, cifradas no banco, com o ambiente como fallback       | accepted | 2026-09-17 | [ADR-005-chaves-de-api-cifradas-no-banco.md](ADR-005-chaves-de-api-cifradas-no-banco.md)                                     |
+| ADR-006 | O idioma de estudo é propriedade da fonte, não do perfil; o perfil guarda só a língua de explicação   | accepted | 2026-09-17 | [ADR-006-idioma-de-estudo-vem-da-fonte.md](ADR-006-idioma-de-estudo-vem-da-fonte.md)                                         |
 
 <!-- bootstrap-audit preenche uma linha por arquivo em .agents/decisions/*.md, lendo o frontmatter (id, title, status, date). Não remova este comentário — é o marcador de onde a regeneração insere as linhas. -->
 

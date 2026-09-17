@@ -32,7 +32,7 @@ Ainda em 17/09, **ADR-004 / TASK-011** deu proveniência própria à legenda de 
 
 Ainda em 17/09, as chaves de provedor passaram a ser cadastráveis em Ajustes (TASK-012, ADR-005). Antes, registrar ou trocar uma chave exigia editar `.env.local` e derrubar web e worker — e a tela só sabia dizer "não configurado", sem oferecer caminho e sem distinguir qual dos três requisitos do provedor de texto estava faltando. Agora a migração 007 cria `integration_credentials`, a chave é cifrada com AES-256-GCM (chave derivada de `BETTER_AUTH_SECRET`, porque `scripts/backup.ts` despeja o banco), só os quatro últimos caracteres voltam pela API, e a chave cadastrada tem precedência sobre a variável de ambiente, que continua valendo como fallback. `AI_ENABLED`, `AI_TEXT_PROVIDER` e as datas de revisão de preço **continuam no ambiente** de propósito: são os controles que autorizam gasto real. Salvar não valida a chave contra o provedor — seria inferência sem reserva prévia.
 
-Também em 17/09 foi feito o levantamento do acoplamento ao inglês, a pedido do proprietário. **Nada foi alterado**: o resultado está registrado abaixo, em "Restrições importantes".
+Também em 17/09, o levantamento do acoplamento ao inglês virou decisão e backlog. O par inglês → português (BR) continua fixo no código — **nada foi implementado ainda** —, mas ADR-006 escolheu o caminho: o idioma de estudo é propriedade da fonte, não do perfil, porque o schema já foi desenhado assim desde a 001 (`sources.language` e `cards.language` são `text`, e a chave única de cartão já inclui `language`). O perfil guarda só a língua de explicação, em `learner_profiles.locale` — coluna que existe desde a 001 com default `pt-BR` e que o levantamento descobriu **nunca ter sido lida nem escrita** por nenhum código. TASK-013, TASK-014 e TASK-015 estão em `backlog/`, nessa ordem de dependência. Idioma sem conteúdo autoral entra sem conteúdo autoral: o pacote de exemplo, os cinco cenários e o diagnóstico existem só em inglês, e a tela vai dizer isso em vez de fabricar substituto.
 
 ## Arquitetura vigente
 
@@ -45,7 +45,7 @@ Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`
 - Schema só muda por migração nova em `migrations/`; migração já aplicada nunca é editada.
 - Arquivos do proprietário vivem em `data/objects/` e nunca são servidos como pasta pública.
 - Cadastro pela interface é desabilitado; existe um único proprietário (`scripts/owner.ts` recusa criar um segundo).
-- **O par de idiomas é inglês → português (BR), fixo no código.** Não é configuração: `sourceInput.language` e `cardInput.language` em `src/domain/content.ts` são `z.enum(["en-US","en-GB"])`; o perfil só tem `englishVariant`; `Study.tsx` envia `language: "en-US"` fixo ao criar fonte; os três prompts de `src/server/providers.ts` nomeiam inglês e português ("English practice tutor", "in natural Brazilian Portuguese", "Transcribe the spoken English"); `normalize()` usa `toLocaleLowerCase("en")`; `Practice.tsx` marca `lang` como `en` ou `pt-BR`. O banco não é o limite — `sources.language` e `cards.language` são `text`, e a chave única de cartão já inclui `language`.
+- **O par de idiomas é inglês → português (BR), fixo no código** (decidido em ADR-006, ainda não implementado — ver TASK-013 a TASK-015 no backlog). Não é configuração: `sourceInput.language` e `cardInput.language` em `src/domain/content.ts` são `z.enum(["en-US","en-GB"])`; o perfil só tem `englishVariant`; `Study.tsx` envia `language: "en-US"` fixo ao criar fonte; os três prompts de `src/server/providers.ts` nomeiam inglês e português ("English practice tutor", "in natural Brazilian Portuguese", "Transcribe the spoken English"); `normalize()` usa `toLocaleLowerCase("en")`; `Practice.tsx` marca `lang` como `en` ou `pt-BR`. O banco não é o limite — `sources.language` e `cards.language` são `text`, e a chave única de cartão já inclui `language`.
 
 ## Dívida técnica conhecida
 
@@ -56,6 +56,8 @@ Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`
 - **Mobile só emulado**: microfone e codecs verificados em 390×844 por emulação; nunca em aparelho físico.
 
 ## Decisões recentes
+
+**ADR-006** (2026-09-17, `accepted`) — o idioma de estudo é propriedade da fonte, não do perfil; o perfil guarda só a língua de explicação. Estudar mais de um idioma ao mesmo tempo sai sem migração de dados, porque o schema já suportava. `difficulty` (A1–C1) fica declaradamente ambíguo e não é resolvido aqui.
 
 **ADR-004** (2026-09-17, `accepted`) — chave de provedor é dado do proprietário, cifrada no banco e cadastrável em Ajustes; o ambiente vira fallback. `AI_ENABLED`, `AI_TEXT_PROVIDER` e revisão de preço permanecem no ambiente, porque decidem gasto real.
 
