@@ -24,18 +24,18 @@ Quem mantém isso vivo: `bootstrap-complete` (ao concluir uma task que toca a á
 
 Estes documentos já existiam na raiz de `docs/` e **continuam sendo os donos** dos respectivos assuntos. Não foram movidos nem duplicados no bootstrap.
 
-| Assunto | Fonte primária |
-|---|---|
-| Contratos da API local (rotas, erros, cabeçalhos) | [`API.md`](API.md) |
-| Ativação de provedores de IA, preços e piloto | [`INTEGRACOES.md`](INTEGRACOES.md) |
-| Operação: backup, restauração, incidentes | [`OPERACAO.md`](OPERACAO.md) |
-| Especificação original do produto | [`PRODUTO_ORIGINAL.md`](PRODUTO_ORIGINAL.md) |
-| Mockups e design system de origem | [`mockups/`](mockups/) |
-| Identidade visual resumida | [`../DESIGN.md`](../DESIGN.md) |
-| Escopo, limites e compromissos de marca | [`../PRODUCT.md`](../PRODUCT.md) |
-| Estrutura, visão arquitetural e demais assuntos | esta pasta (`docs/`) |
+| Assunto                                           | Fonte primária                               |
+| ------------------------------------------------- | -------------------------------------------- |
+| Contratos da API local (rotas, erros, cabeçalhos) | [`API.md`](API.md)                           |
+| Ativação de provedores de IA, preços e piloto     | [`INTEGRACOES.md`](INTEGRACOES.md)           |
+| Operação: backup, restauração, incidentes         | [`OPERACAO.md`](OPERACAO.md)                 |
+| Especificação original do produto                 | [`PRODUTO_ORIGINAL.md`](PRODUTO_ORIGINAL.md) |
+| Mockups e design system de origem                 | [`mockups/`](mockups/)                       |
+| Identidade visual resumida                        | [`../DESIGN.md`](../DESIGN.md)               |
+| Escopo, limites e compromissos de marca           | [`../PRODUCT.md`](../PRODUCT.md)             |
+| Estrutura, visão arquitetural e demais assuntos   | esta pasta (`docs/`)                         |
 
-**Pendência conhecida**: o `README.md` da raiz cita `docs/VALIDACAO.md` duas vezes, mas esse arquivo não existe. É o único link quebrado da documentação — ver [`quality/README.md`](quality/README.md).
+Os dois links quebrados que este mapa registrava foram fechados em 17/09/2026: [`VALIDACAO.md`](VALIDACAO.md) existe e é citado pelo `README.md` da raiz, e [`data/`](data/README.md) deixou de ser uma entrada sem destino — o arquivo nunca entrara no Git porque a regra `data/` do `.gitignore`, escrita para os arquivos do proprietário na raiz, não estava ancorada e engolia `docs/data/` junto. A regra virou `/data/`.
 
 ## Regra de organização
 

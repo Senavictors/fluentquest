@@ -9,7 +9,7 @@ O acesso ao banco usa os scripts locais e as ferramentas SQL disponíveis. Qualq
 
 - **Conexão e transação**: `src/server/db.ts` expõe `pool`, `db` (Drizzle), `query` e `transaction`. Toda escrita que envolve mais de uma tabela passa por `transaction`.
 - **Schema Drizzle**: `src/server/schema.ts` — é o espelho tipado do SQL, não a fonte da verdade do banco.
-- **Migrações**: `migrations/001_initial.sql` e `migrations/002_learning_flow.sql`, aplicadas por `scripts/migrate.ts` dentro de um `BEGIN` único, protegidas por `pg_advisory_xact_lock(843201)` e registradas na tabela de controle `fq_migrations`. Uma migração já registrada nunca é reaplicada.
+- **Migrações**: `migrations/001_initial.sql` a `migrations/007_integration_credentials.sql` (inventário comentado em `docs/data/README.md`), aplicadas por `scripts/migrate.ts` dentro de um `BEGIN` único, protegidas por `pg_advisory_xact_lock(843201)` e registradas na tabela de controle `fq_migrations`. Uma migração já registrada nunca é reaplicada.
 - **Arquivos privados**: `src/server/storage.ts` grava em `data/objects/`, fora de qualquer pasta pública; `removeUserObjects` faz a limpeza na exclusão de conta.
 - **Provisionamento**: `scripts/setup.ts` cria banco e usuário e **recusa** sobrescrever um que já exista; `scripts/backup.ts` e `scripts/restore.ts` usam o `PG_BIN` de `.env.local`.
 

@@ -5,9 +5,11 @@ test-results/
 playwright-report/
 .impeccable/review/
 
-# Dados locais do proprietário — nunca versionados
-data/
-data-restore/
+# Dados locais do proprietário — nunca versionados.
+# Ancorado na raiz de propósito: sem a barra inicial, a regra também engolia
+# docs/data/, que é documentação versionada.
+/data/
+/data-restore/
 
 # ---- Sempre ignorar: segredos ----
 .env*

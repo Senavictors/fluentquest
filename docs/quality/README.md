@@ -4,14 +4,14 @@
 
 Execução completa da bateria descrita no `README.md` da raiz, nesta data:
 
-| Verificação | Comando | Resultado |
-|---|---|---|
-| Tipos | `npm run typecheck` | 0 erros |
-| Unitários | `npm test` | 11/11 |
-| Integração | `npm run test:integration` | 23/23 cenários, nenhuma chamada de IA |
-| Build | `npm run build` | compilou em ~1s, 4 rotas |
-| Acessibilidade | `node scripts/accessibility-qa.mjs` | `violations: []` em 9 rotas |
-| Navegador | `node scripts/browser-qa.mjs` | 0 erros, 0 overflows, 1440×1000 e 390×844 |
+| Verificação    | Comando                             | Resultado                                 |
+| -------------- | ----------------------------------- | ----------------------------------------- |
+| Tipos          | `npm run typecheck`                 | 0 erros                                   |
+| Unitários      | `npm test`                          | 11/11                                     |
+| Integração     | `npm run test:integration`          | 23/23 cenários, nenhuma chamada de IA     |
+| Build          | `npm run build`                     | compilou em ~1s, 4 rotas                  |
+| Acessibilidade | `node scripts/accessibility-qa.mjs` | `violations: []` em 9 rotas               |
+| Navegador      | `node scripts/browser-qa.mjs`       | 0 erros, 0 overflows, 1440×1000 e 390×844 |
 
 Resultados brutos dos dois últimos ficam em `.impeccable/review/` (não versionado).
 
@@ -27,11 +27,10 @@ Autenticação e isolamento por proprietário; idempotência de importação con
 
 ## Lacunas conhecidas
 
-1. **`docs/VALIDACAO.md` não existe**, embora o `README.md` da raiz o cite duas vezes como fonte de evidências e limites. É o único link quebrado da documentação. Esta pasta é o lugar natural para esse conteúdo — o material acima é a base para escrevê-lo.
-2. **Sem `npm run lint`**: Prettier está instalado como devDependency, sem script. Não há verificação automática de formatação.
-3. **Mobile só emulado**: 390×844 com microfone sintético. Microfone e codecs em aparelho físico nunca foram testados — é a lacuna mais provável de esconder um defeito real.
-4. **IA sem evidência de qualidade**: ver [`../ai/README.md`](../ai/README.md).
-5. **Sem CI**: toda a bateria é executada manualmente.
+1. **Sem `npm run lint`**: Prettier está instalado como devDependency, sem script. Não há verificação automática de formatação.
+2. **Mobile só emulado**: 390×844 com microfone sintético. Microfone e codecs em aparelho físico nunca foram testados — é a lacuna mais provável de esconder um defeito real.
+3. **IA sem evidência de qualidade**: ver [`../ai/README.md`](../ai/README.md).
+4. **Sem CI**: toda a bateria é executada manualmente.
 
 ## Definição de pronto
 
