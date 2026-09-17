@@ -15,7 +15,6 @@ import {
   Repeat2,
   RectangleHorizontal,
   Volume2,
-  Maximize2,
   ChevronLeft,
   ChevronRight,
   Send,
@@ -676,11 +675,6 @@ export function Study({ sourceId }: { sourceId: string }) {
     [tab, setTab] = useState(
       params.get("tab") || savedContext.tab || "expression",
     ),
-    [immersed, setImmersed] = useState(
-      params.has("mode")
-        ? params.get("mode") === "immersion"
-        : savedContext.immersion || false,
-    ),
     [cinema, setCinema] = useState(false),
     [wide, setWide] = useState(false),
     [reveal, setReveal] = useState(false),
@@ -788,6 +782,16 @@ export function Study({ sourceId }: { sourceId: string }) {
       // Navegador sem armazenamento: a sala abre no arranjo padrão.
     }
   }, []);
+  // A barra lateral vive fora desta árvore, então o modo precisa de uma marca
+  // no documento para alcançá-la — mesmo caminho que o tema já usa. Quem decide
+  // se a marca vale é o CSS, dentro do mesmo limiar de largura; assim não há
+  // piscada entre o primeiro quadro e o efeito.
+  useEffect(() => {
+    document.documentElement.dataset.cinema = cinema ? "1" : "";
+    return () => {
+      document.documentElement.dataset.cinema = "";
+    };
+  }, [cinema]);
   // Mesmo limiar do CSS. O atalho e a dica de rodapé só existem onde o arranjo
   // existe: anunciar uma tecla que não faz nada no celular seria mentira.
   useEffect(() => {
@@ -805,6 +809,16 @@ export function Study({ sourceId }: { sourceId: string }) {
       // Preferência não persiste, mas a sessão atual respeita a escolha.
     }
   }, []);
+  // Uma superfície que toma a janela inteira precisa da saída que todo mundo
+  // tenta primeiro.
+  useEffect(() => {
+    if (!cinema) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") applyCinema(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [cinema, applyCinema]);
   useEffect(() => {
     if (!data.profile.shortcutsEnabled) return;
     const handler = (e: KeyboardEvent) => {
@@ -841,23 +855,17 @@ export function Study({ sourceId }: { sourceId: string }) {
     wide,
     applyCinema,
   ]);
-  function context(next: {
-    tab?: string;
-    segment?: string;
-    immersion?: boolean;
-  }) {
+  function context(next: { tab?: string; segment?: string }) {
     const t = next.tab || tab,
-      s = next.segment || selected?.id,
-      im = next.immersion ?? immersed;
+      s = next.segment || selected?.id;
     const p = new URLSearchParams({
       tab: t,
       ...(s ? { segment: s } : {}),
-      ...(im ? { mode: "immersion" } : {}),
     });
     window.history.replaceState(null, "", `/estudar/${sourceId}?${p}`);
     if (data.session?.source_id === sourceId)
       void api(`sessions/${data.session.id}`, "PATCH", {
-        context: { tab: t, segment: s, immersion: im },
+        context: { tab: t, segment: s },
       }).catch(() => {});
   }
   async function revealTranslation() {
@@ -914,9 +922,7 @@ export function Study({ sourceId }: { sourceId: string }) {
       </div>
     );
   return (
-    <div
-      className={`study ${immersed ? "immersed" : ""} ${cinema ? "cinema" : ""}`}
-    >
+    <div className={`study ${cinema ? "cinema" : ""}`}>
       <div className="study-heading">
         <div>
           <Link href="/biblioteca" className="back-link">
@@ -928,18 +934,27 @@ export function Study({ sourceId }: { sourceId: string }) {
             {lesson.source.is_example ? " · Material de exemplo" : ""}
           </span>
         </div>
-        <button
-          className="icon-button"
-          title="Alternar modo imersão"
-          aria-label="Alternar modo imersão"
-          aria-pressed={immersed}
-          onClick={() => {
-            setImmersed(!immersed);
-            context({ immersion: !immersed });
-          }}
-        >
-          <Maximize2 size={19} />
-        </button>
+        {/* Mora no cabeçalho, não entre os controles de reprodução: o modo
+            troca a sala inteira, não o player. É também a única largura que
+            comporta o rótulo — na barra do vídeo ele quebrava a linha. No modo
+            cinema este cabeçalho vira a faixa fina da superfície, e o botão
+            passa a ser o fechar dela. O CSS remove os dois abaixo de 1240px,
+            e com eles o alvo de foco. */}
+        {lesson.source.kind !== "text" && (
+          <button
+            className={`cinema-toggle ${cinema ? "selected" : ""}`}
+            aria-pressed={cinema}
+            title={
+              cinema
+                ? "Voltar ao arranjo com painel de ferramentas"
+                : "Ampliar o vídeo e manter só a transcrição ao lado"
+            }
+            onClick={() => applyCinema(!cinema)}
+          >
+            {cinema ? <X size={16} /> : <RectangleHorizontal size={16} />}
+            {cinema ? "Sair do cinema" : "Modo cinema"}
+          </button>
+        )}
       </div>
       {!lesson.source.is_example && (
         <div className="notice" role="status">
@@ -1060,21 +1075,6 @@ export function Study({ sourceId }: { sourceId: string }) {
                     · {saved ? "salvo" : "salvando…"}
                   </small>
                 </span>
-                {/* Só aparece onde há largura para o arranjo — o CSS o remove
-                    abaixo de 1240px, e com ele o alvo de foco. */}
-                <button
-                  className={`cinema-toggle ${cinema ? "selected" : ""}`}
-                  aria-pressed={cinema}
-                  title={
-                    cinema
-                      ? "Voltar ao arranjo com painel de ferramentas"
-                      : "Ampliar o vídeo e manter só a transcrição ao lado"
-                  }
-                  onClick={() => applyCinema(!cinema)}
-                >
-                  <RectangleHorizontal size={16} />{" "}
-                  {cinema ? "Sair do cinema" : "Modo cinema"}
-                </button>
               </div>
             )}
           </div>

@@ -1258,9 +1258,15 @@ label.search {
 }
 /* Modo cinema. No arranjo normal o vídeo é a coluna estreita, porque o trabalho
    é ler e salvar expressões. Quando a tarefa é assistir acompanhando o texto, a
-   proporção se inverte: o painel de ferramentas sai, o vídeo toma a largura e a
-   transcrição vira a coluna lateral — o arranjo que o YouTube chama de cinema e
-   que o proprietário já reconhece de lá.
+   proporção se inverte.
+   A primeira versão apenas invertia as colunas dentro da página, e num notebook
+   isso ficou pior que o arranjo normal: a sala tem altura de janela, e entre
+   cabeçalho, aviso e trilha de etapas sobravam ~240px para o vídeo, que então
+   ficava estreito e cercado de tarja. Aqui o modo deixa de ser um arranjo de
+   coluna e passa a ser uma superfície: barra lateral, aviso e trilha saem, o
+   cabeçalho encolhe para uma linha, e o que resta da janela é vídeo e
+   transcrição. O palco não tem fundo próprio — a sobra é a cor da página, não
+   uma moldura preta em volta do vídeo.
    Só existe acima de 1240px. Abaixo disso não há largura para as duas colunas,
    e `display: none` no controle também o tira da ordem de tabulação, em vez de
    deixar um botão invisível e focável. */
@@ -1271,7 +1277,20 @@ label.search {
   .cinema-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  /* A barra lateral está fora da árvore da sala, então é alcançada pela marca
+     no documento. `display: none` também a tira da ordem de tabulação: sem
+     isso, o foco passearia por uma navegação que ninguém vê. */
+  html[data-cinema="1"] .sidebar {
+    display: none;
+  }
+  html[data-cinema="1"] .app-shell {
+    grid-template-columns: minmax(0, 1fr);
   }
   /* `.study` tem `margin: auto`, e margem automática no eixo transversal de um
      flex em coluna desliga o `stretch`: o elemento passa a ter a largura do
@@ -1284,6 +1303,26 @@ label.search {
     max-width: none;
     width: 100%;
   }
+  /* Cada pixel de mobiliário aqui sai do vídeo. O aviso e a trilha de etapas
+     pertencem ao trabalho de estudar, não ao de assistir, e voltam junto com o
+     arranjo normal. O cabeçalho fica, reduzido a uma linha, porque é o que
+     ainda diz onde você está e como voltar. */
+  .study.cinema > .notice,
+  .study.cinema > .study-flow {
+    display: none;
+  }
+  .study.cinema .study-heading {
+    padding: 9px 26px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .study.cinema .study-heading h1 {
+    font-size: 15px;
+    margin: 0;
+  }
+  .study.cinema .study-heading .back-link,
+  .study.cinema .study-heading > div > .small {
+    display: none;
+  }
   .study.cinema .study-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1292,6 +1331,7 @@ label.search {
   }
   .study.cinema .study-content {
     grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+    padding: 18px 26px 16px;
   }
   /* A mídia deixa de se alinhar ao topo e passa a ocupar a coluna inteira: é
      dessa altura que o vídeo tira o tamanho. */
@@ -1301,16 +1341,19 @@ label.search {
     flex-direction: column;
     min-height: 0;
   }
+  /* Sem fundo: o palco é só a caixa que mede o espaço disponível. O que sobra
+     ao lado ou acima do vídeo é a página, não uma tarja. */
   .study.cinema .study-media .player-area {
     flex: 1 1 auto;
     min-height: 0;
     container-type: size;
     display: grid;
     place-items: center;
+    background: transparent;
   }
   /* O vídeo é o maior 16:9 que cabe nos dois eixos da moldura. Sem as unidades
      de container, `height: 100%` numa coluna estreita distorceria a proporção
-     em vez de reduzir o vídeo. A sobra vira tarja escura, como num cinema. */
+     em vez de reduzir o vídeo. */
   .study.cinema .youtube-host {
     width: min(100cqw, calc(100cqh * 16 / 9));
     height: auto;
@@ -1319,6 +1362,15 @@ label.search {
     max-height: 100%;
     max-width: 100%;
     width: auto;
+  }
+  .study.cinema .player-toolbar {
+    padding: 11px 0 0;
+    border-bottom: 0;
+  }
+  /* Ler a transcrição de longe, acompanhando o vídeo, pede um corpo maior que o
+     da leitura de perto. */
+  .study.cinema .segment-select {
+    font-size: 16px;
   }
 }
 @media (min-width: 1600px) {
@@ -1681,15 +1733,6 @@ label.search {
 }
 .pagination button {
   font-size: 12px;
-}
-.immersed .study-grid {
-  grid-template-columns: minmax(0, 1fr) 310px;
-}
-.immersed .reading-feature {
-  min-height: 270px;
-}
-.immersed .segment-select {
-  font-size: 19px;
 }
 .scenario-picker {
   display: flex;
@@ -2342,8 +2385,7 @@ code {
   .mission-description {
     font-size: 17px;
   }
-  .study-grid,
-  .immersed .study-grid {
+  .study-grid {
     grid-template-columns: minmax(0, 1fr) 305px;
   }
   .study-content {
@@ -2459,8 +2501,7 @@ code {
     display: block;
     overflow: visible;
   }
-  .study-grid,
-  .immersed .study-grid {
+  .study-grid {
     grid-template-columns: 1fr;
   }
   .study-content {

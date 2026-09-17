@@ -134,6 +134,43 @@ O primeiro resultado ampliava o vídeo em apenas 44px. A causa não estava no bl
 - axe no modo cinema: 2 violações, ambas dentro do iframe do YouTube (`ytmVideoInfoVideoTitle`, `html5-video-player`) e presentes também na medição de referência sem o modo. Não são nossas e não são corrigíveis daqui.
 - Detector do Impeccable sobre `Study.tsx` e `globals.css`: nenhum achado.
 
+## Revisão — 2026-09-17, segunda passagem
+
+### O que o proprietário reportou
+
+Num monitor grande o modo ficou "razoavelmente bom", mas no notebook ficou ruim: o vídeo estreito, cercado de tarja preta. Pediu algo mais estruturado, "tipo uma modal", sem a borda preta. Reportou também que o botão de expandir/minimizar do cabeçalho — o modo imersão — não serve para nada e que nem sabia para que existia.
+
+### Diagnóstico
+
+A primeira versão tratava o cinema como um arranjo de colunas dentro da página, e a página continuava pagando por cabeçalho, aviso e trilha de etapas. Num notebook de 1360×630 isso deixava ~240px de altura para o palco, e como o vídeo é o maior 16:9 que cabe nos dois eixos, ele encolhia e o resto do palco virava tarja. A tarja era consequência, não escolha: quanto menor a altura útil, maior a moldura.
+
+Sobre o botão de imersão, o proprietário está certo. `.immersed` fazia exatamente duas coisas: painel de 350px para 310px e corpo do trecho de 15px para 19px. Nenhuma das duas se anuncia, e o ícone `Maximize2` prometia uma ampliação que não acontecia.
+
+### Correções
+
+- **O cinema deixou de ser arranjo e virou superfície.** Barra lateral (alcançada por `html[data-cinema="1"]`, já que vive fora da árvore da sala), aviso e trilha de etapas saem; o cabeçalho encolhe para uma faixa com título à esquerda e fechar à direita. O que resta da janela é vídeo e transcrição.
+- **Sem moldura preta.** `.player-area` perde o fundo `#141617` no cinema. A sobra em volta do vídeo passa a ser a cor da página.
+- **Saídas que as pessoas tentam primeiro.** `Esc` além do botão e de `C`.
+- **O controle mudou de lugar.** Saiu da barra do player e foi para o cabeçalho, ocupando o vão deixado pelo botão de imersão. Na barra do player o rótulo quebrava a linha numa coluna de 380px, custando ~44px de transcrição justamente na tela mais apertada; e o modo troca a sala inteira, não o player. No cinema esse mesmo botão é o fechar da faixa, o que dá ao modo a estrutura de cabeçalho de modal que o proprietário pediu.
+- **Modo imersão removido**: estado, botão, parâmetro `?mode=immersion`, escrita no contexto da sessão e as três regras de CSS. O corpo maior de trecho migrou para o cinema, onde ler de longe é a tarefa.
+
+### Por que não é uma `<dialog>` de verdade
+
+Mover o player para dentro de um elemento novo desmontaria o iframe do YouTube e perderia a reprodução e a posição. A superfície é obtida por CSS, sem tirar nada de lugar na árvore, e recebe em JS o que uma modal daria: `Esc` para sair e a navegação removida da ordem de tabulação por `display: none`.
+
+### Compatibilidade
+
+`PATCH /api/sessions/:id` continua aceitando `immersion` como opcional, para não invalidar sessões já gravadas. O cliente parou de escrever e de ler o campo. Nenhum contrato mudou, então `docs/API.md` não precisou de alteração.
+
+### Validação da segunda passagem
+
+- `npm run typecheck`, `npm test` (56/56) e `npm run build`: passaram.
+- `node scripts/accessibility-qa.mjs`: 0 violações em todas as rotas.
+- Vídeo, normal → cinema: 1360×630 **380×220 → 852×485**; 1366×768 → 884×503; 1440×900 → 958×545; 1920×1080 → 1398×792.
+- Palco com fundo transparente confirmado por `getComputedStyle`; barra lateral fora do fluxo no cinema; `Esc` sai do modo nas quatro larguras; rolagem horizontal zero.
+- Em 390×844: sem controle, sem barra lateral fora do padrão, arranjo idêntico ao anterior.
+- axe no cinema: as mesmas 2 violações de dentro do iframe do YouTube, presentes na medição de referência.
+
 ## Handoff
 
 Não aplicável.
