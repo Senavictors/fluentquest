@@ -1256,6 +1256,76 @@ label.search {
     grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
   }
 }
+/* Modo cinema. No arranjo normal o vídeo é a coluna estreita, porque o trabalho
+   é ler e salvar expressões. Quando a tarefa é assistir acompanhando o texto, a
+   proporção se inverte: o painel de ferramentas sai, o vídeo toma a largura e a
+   transcrição vira a coluna lateral — o arranjo que o YouTube chama de cinema e
+   que o proprietário já reconhece de lá.
+   Só existe acima de 1240px. Abaixo disso não há largura para as duas colunas,
+   e `display: none` no controle também o tira da ordem de tabulação, em vez de
+   deixar um botão invisível e focável. */
+.cinema-toggle {
+  display: none;
+}
+@media (min-width: 1240px) {
+  .cinema-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  /* `.study` tem `margin: auto`, e margem automática no eixo transversal de um
+     flex em coluna desliga o `stretch`: o elemento passa a ter a largura do
+     próprio conteúdo. No arranjo normal isso não aparece porque o painel fixo
+     faz o conteúdo passar de 1600px; sem ele, a sala encolhia para ~1000px
+     justamente no modo que existe para ser largo. Largura explícita devolve a
+     coluna inteira, e o teto editorial sai porque aqui a largura extra vira
+     vídeo, não medida de leitura — a transcrição tem coluna própria. */
+  .study.cinema {
+    max-width: none;
+    width: 100%;
+  }
+  .study.cinema .study-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .study.cinema .study-panel {
+    display: none;
+  }
+  .study.cinema .study-content {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  }
+  /* A mídia deixa de se alinhar ao topo e passa a ocupar a coluna inteira: é
+     dessa altura que o vídeo tira o tamanho. */
+  .study.cinema .study-media {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .study.cinema .study-media .player-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    container-type: size;
+    display: grid;
+    place-items: center;
+  }
+  /* O vídeo é o maior 16:9 que cabe nos dois eixos da moldura. Sem as unidades
+     de container, `height: 100%` numa coluna estreita distorceria a proporção
+     em vez de reduzir o vídeo. A sobra vira tarja escura, como num cinema. */
+  .study.cinema .youtube-host {
+    width: min(100cqw, calc(100cqh * 16 / 9));
+    height: auto;
+  }
+  .study.cinema .local-video {
+    max-height: 100%;
+    max-width: 100%;
+    width: auto;
+  }
+}
+@media (min-width: 1600px) {
+  .study.cinema .study-content {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+  }
+}
 .study-panel {
   border-left: 1px solid var(--line);
   display: flex;

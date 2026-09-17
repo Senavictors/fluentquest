@@ -13,6 +13,7 @@ import {
   X,
   Check,
   Repeat2,
+  RectangleHorizontal,
   Volume2,
   Maximize2,
   ChevronLeft,
@@ -680,6 +681,8 @@ export function Study({ sourceId }: { sourceId: string }) {
         ? params.get("mode") === "immersion"
         : savedContext.immersion || false,
     ),
+    [cinema, setCinema] = useState(false),
+    [wide, setWide] = useState(false),
     [reveal, setReveal] = useState(false),
     [draft, setDraft] = useState<Vocabulary | null>(null),
     [answer, setAnswer] = useState(""),
@@ -777,6 +780,31 @@ export function Study({ sourceId }: { sourceId: string }) {
     },
     [loop, selected?.id, sourceId],
   );
+  // Lido depois da montagem: ler no initializer divergiria do HTML do servidor.
+  useEffect(() => {
+    try {
+      setCinema(localStorage.getItem("fq-cinema") === "1");
+    } catch {
+      // Navegador sem armazenamento: a sala abre no arranjo padrão.
+    }
+  }, []);
+  // Mesmo limiar do CSS. O atalho e a dica de rodapé só existem onde o arranjo
+  // existe: anunciar uma tecla que não faz nada no celular seria mentira.
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1240px)");
+    const apply = () => setWide(query.matches);
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, []);
+  const applyCinema = useCallback((next: boolean) => {
+    setCinema(next);
+    try {
+      localStorage.setItem("fq-cinema", next ? "1" : "0");
+    } catch {
+      // Preferência não persiste, mas a sessão atual respeita a escolha.
+    }
+  }, []);
   useEffect(() => {
     if (!data.profile.shortcutsEnabled) return;
     const handler = (e: KeyboardEvent) => {
@@ -798,10 +826,21 @@ export function Study({ sourceId }: { sourceId: string }) {
         e.preventDefault();
         void revealTranslation();
       }
+      if (e.key.toLowerCase() === "c" && wide) {
+        e.preventDefault();
+        applyCinema(!cinema);
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [data.profile.shortcutsEnabled, selected?.id, reveal]);
+  }, [
+    data.profile.shortcutsEnabled,
+    selected?.id,
+    reveal,
+    cinema,
+    wide,
+    applyCinema,
+  ]);
   function context(next: {
     tab?: string;
     segment?: string;
@@ -875,7 +914,9 @@ export function Study({ sourceId }: { sourceId: string }) {
       </div>
     );
   return (
-    <div className={`study ${immersed ? "immersed" : ""}`}>
+    <div
+      className={`study ${immersed ? "immersed" : ""} ${cinema ? "cinema" : ""}`}
+    >
       <div className="study-heading">
         <div>
           <Link href="/biblioteca" className="back-link">
@@ -950,6 +991,10 @@ export function Study({ sourceId }: { sourceId: string }) {
                 await api(`sessions/${data.session.id}`, "PATCH", {
                   stage: "recall",
                 });
+              // O painel de ferramentas está oculto no modo cinema: mandar o
+              // foco para a atividade sem devolver o painel seria um clique
+              // que não mostra nada.
+              applyCinema(false);
               setTab("activity");
               context({ tab: "activity" });
               await refresh();
@@ -1015,6 +1060,21 @@ export function Study({ sourceId }: { sourceId: string }) {
                     · {saved ? "salvo" : "salvando…"}
                   </small>
                 </span>
+                {/* Só aparece onde há largura para o arranjo — o CSS o remove
+                    abaixo de 1240px, e com ele o alvo de foco. */}
+                <button
+                  className={`cinema-toggle ${cinema ? "selected" : ""}`}
+                  aria-pressed={cinema}
+                  title={
+                    cinema
+                      ? "Voltar ao arranjo com painel de ferramentas"
+                      : "Ampliar o vídeo e manter só a transcrição ao lado"
+                  }
+                  onClick={() => applyCinema(!cinema)}
+                >
+                  <RectangleHorizontal size={16} />{" "}
+                  {cinema ? "Sair do cinema" : "Modo cinema"}
+                </button>
               </div>
             )}
           </div>
@@ -1261,7 +1321,7 @@ export function Study({ sourceId }: { sourceId: string }) {
                   ? "Texto autoral de demonstração, sem vídeo associado."
                   : "A origem acompanha cada expressão que você salvar."}
                 {data.profile.shortcutsEnabled
-                  ? " · R: repetir · T: apoio"
+                  ? ` · R: repetir · T: apoio${wide ? " · C: cinema" : ""}`
                   : ""}
               </span>
               <Link href="/praticar">

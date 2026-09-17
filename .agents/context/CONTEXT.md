@@ -24,6 +24,8 @@ Em 17/09 a conferência de uma transcrição real expôs dois defeitos e abriu T
 
 Ainda em 17/09, as reservas ambíguas foram destravadas. `unknown` era um estado terminal — `failBudget` colocava a reserva lá e nada no código a tirava —, e `usage()` soma `active` + `unknown` contra o teto. Dez reservas de 15 a 17/09 somavam US$ 0,5897 de um teto de US$ 1,00, contra consumo real medido de US$ 0,2190: o orçamento tinha parado de proteger e passado a travar. ADR-003 criou o estado `reconciled`, a migração 006 (`reconciled_at`, `reconciliation_note`) e o comando `npm run budget:reconcile`, que relata por padrão e só altera estado com `--liberar "motivo"`, recusando reserva com uso medido ou com menos de dez minutos. As dez foram conciliadas com base no nível gratuito sem faturamento; o disponível voltou para US$ 0,78.
 
+A sala de estudo ganhou um **modo cinema** (TASK-010), a pedido do proprietário e apenas acima de 1240px: o painel de ferramentas sai, o vídeo toma a largura e a transcrição vira coluna lateral de 320–440px. Num monitor de 1920px o vídeo passa de 430×248 para 1182×671. O controle vive na barra do player, o atalho é `C`, a preferência fica em `localStorage` (`fq-cinema`) e tanto o botão quanto o atalho e a dica de rodapé deixam de existir abaixo do limiar. Celular e tablet não mudaram.
+
 ## Arquitetura vigente
 
 Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`content.ts`, `review.ts`) sem conhecer HTTP ou banco; servidor em `src/server/` sobre PostgreSQL 18 + Drizzle; fila `pg-boss` no worker `src/worker.ts`; Better Auth com origem restrita a `BETTER_AUTH_URL`; agendamento por `ts-fsrs`. Detalhe em `docs/architecture/` e nos papéis em `.claude/agents/`.
