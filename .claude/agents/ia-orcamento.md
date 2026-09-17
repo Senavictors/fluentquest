@@ -13,7 +13,7 @@ Você é o especialista em integração de IA e controle de custo do repositóri
 - **Orçamento**: `src/server/budget.ts` (168 linhas) — `budgetPeriod` (mês no fuso de estudo), `tokenCostMicros` (micros de dólar, sem arredondar centavo por chamada), `reserveBudget`, `settleBudget`, `failBudget(id, ambiguous)` e `usage`.
 - **Persistência de custo**: `budget_reservations` (com `state`) e `usage_events` (com `reservation_id UNIQUE`, que é o que torna a conciliação idempotente).
 - **Limites**: padrão US$ 40/mês, alerta US$ 25, no máximo **duas** reservas ativas por usuário (`AI_CONCURRENCY_LIMIT`, HTTP 429).
-- **Cache**: `result_cache` é privado por usuário, conteúdo, áudio, provedor, modelo, schema e versão de prompt.
+- **Cache**: `result_cache` é privado por usuário, conteúdo, áudio, provedor, modelo, schema e versão de prompt. Transcrição de vídeo por URL fica **fora** dele desde TASK-009: cachear prenderia uma resposta recusada na chave e a nova tentativa nunca chamaria o provedor.
 
 ## Regras obrigatórias (não negociáveis)
 

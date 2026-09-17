@@ -171,6 +171,30 @@ export const videoTranscript = z
 // resultado deixa de ser drift e vira erro de unidade (segundos no lugar de
 // milissegundos, por exemplo) — aí continua sendo recusado.
 export const MAX_TIME_DRIFT = 1.5;
+// Piso de cobertura. Uma resposta que descreve só o começo do vídeo é
+// truncamento, não transcrição: em 2026-09-17 o Gemini devolveu 5 trechos
+// cobrindo 111 s de um vídeo de 837 s (13%) — JSON válido, schema satisfeito,
+// fonte marcada `text_ready`. Os 20% de folga absorvem encerramento sem fala
+// (vinheta, tela final); truncamento real fica muito abaixo disso.
+export const MIN_TRANSCRIPT_COVERAGE = 0.8;
+const asClock = (ms: number) =>
+  `${Math.floor(ms / 60000)}min ${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}s`;
+// Medida na linha do tempo crua do modelo, antes de fitTranscriptToDuration:
+// o reescalonamento só encolhe, então nunca transforma transcrição curta em
+// completa, e checar antes evita depender dessa ordem.
+export function assertTranscriptCoverage(
+  segments: { endMs: number }[],
+  durationMs: number,
+) {
+  const lastEnd = Math.max(...segments.map((segment) => segment.endMs));
+  if (lastEnd >= durationMs * MIN_TRANSCRIPT_COVERAGE) return lastEnd;
+  throw new AppError(
+    "INCOMPLETE_TRANSCRIPT",
+    `A transcrição parou em ${asClock(lastEnd)} de ${asClock(durationMs)} — ${Math.round((lastEnd / durationMs) * 100)}% do vídeo. Nenhum trecho foi salvo, porque texto parcial marcado como pronto vira estudo em cima de uma fonte falsa. Tente de novo ou importe uma legenda autorizada. Se o vídeo realmente termina sem fala, a cobertura acima diz quanto falta.`,
+    422,
+    true,
+  );
+}
 export function fitTranscriptToDuration<
   T extends { startMs: number; endMs: number },
 >(segments: T[], durationMs: number): T[] {

@@ -1,6 +1,6 @@
 # Contexto Atual do Projeto — FluentQuest
 
-Última atualização: 2026-09-16
+Última atualização: 2026-09-17
 
 ## Estado atual
 
@@ -12,13 +12,15 @@ Repositório Git inicializado no bootstrap desta arquitetura (branch `main`), co
 
 ## Iniciativas ativas
 
-TASK-001 está em active: o piloto Gemini de texto foi concluído; voz e avaliação humana continuam pendentes. TASK-002, TASK-003, TASK-005 e TASK-008 estão concluídas. TASK-004 voltou a `active` (era `blocked`): a transcrição real foi obtida em 16/09; falta medição de custo com faturamento ativo e revisão humana do texto. TASK-006 e TASK-007 estão em active: abstração multi-provedor e adaptador OpenAI de texto foram implementados e tiveram piloto real; faltam apenas juízo humano comparativo e conciliação com o painel OpenAI.
+TASK-001 está em active: o piloto Gemini de texto foi concluído; voz e avaliação humana continuam pendentes. TASK-002, TASK-003, TASK-005 e TASK-008 estão concluídas. TASK-004 voltou a `active` (era `blocked`): a transcrição real foi obtida em 16/09; falta medição de custo com faturamento ativo e revisão humana do texto. TASK-006 e TASK-007 estão em active: abstração multi-provedor e adaptador OpenAI de texto foram implementados e tiveram piloto real; faltam apenas juízo humano comparativo e conciliação com o painel OpenAI. TASK-009 está em active: piso de cobertura e falha de validação honesta implementados e verdes; falta uma transcrição real que confirme o piso contra uma resposta completa.
 
 Validação de 15/09: typecheck e build passaram; 35 testes automatizados e 30 cenários de integração. QA isolado confirmou legenda, opção Gemini desabilitada sem IA, proveniência automática e quatro variantes 1440/390 claro/escuro sem violações axe ou overflow. Consulte [VALIDACAO.md](../../docs/VALIDACAO.md) via raiz do projeto.
 
 Em 16/09 o apoio de trecho da sala de estudo deixou de reaproveitar o tutor. A rota `POST /api/segments/:id/translate` chamava `explain()`, cujo prompt sempre anexa "explain one point, give one new example and ask for one original sentence" — por isso um pedido de tradução voltava como miniaula em Markdown, renderizada como texto cru num parágrafo único. Agora existe `SegmentSupporter` com saída estruturada (`segmentSupport`: tradução, ponto, exemplo, pergunta), migração 005 (`segments.support jsonb`) e um painel hierarquizado. Trechos apoiados antes da migração continuam sendo devolvidos como `legacyText`.
 
 Ainda em 16/09, a sala de estudo passou de documento rolável a área de trabalho de altura fixa. Antes, ler a transcrição empurrava o vídeo para fora da tela — e a tarefa é justamente ouvir e ler ao mesmo tempo. Agora a altura é derivada por flex (nunca por `calc()`: o cabeçalho varia entre 198px e 355px conforme título e avisos), cada região rola por si, e a partir de 1240px o vídeo fica ao lado da transcrição. Abaixo de 1000px a página volta a rolar com o vídeo fixo no topo. A barra lateral ganhou recolhimento para trilho de 64px (`localStorage` `fq-rail`), o que devolve 144px à transcrição.
+
+Em 17/09 a conferência de uma transcrição real expôs dois defeitos e abriu TASK-009. O vídeo `Xli-93vkN-s` (837 s) voltou com **5 trechos cobrindo 111 s (13%)** e mesmo assim virou fonte `text_ready`: nada verificava cobertura — `videoTranscript` aceita um trecho e `fitTranscriptToDuration` só recusa tempo acima da duração. Na tentativa anterior, do mesmo minuto, o Gemini respondeu com 4.404 tokens de saída, `settleBudget` conciliou e só então o `schema.parse` falhou; como `ZodError` não é `AppError`, virou `PROVIDER_UNAVAILABLE` — uma transcrição inteira paga, descartada sem registro e diagnosticada como indisponibilidade do provedor. Agora existem `assertTranscriptCoverage()` (piso de 80%, erro `INCOMPLETE_TRANSCRIPT`) e `parseProviderOutput()` (erro `INVALID_PROVIDER_OUTPUT`, texto bruto em `AI_INVALID_OUTPUT`), e transcrição de vídeo deixou de usar `result_cache`, senão a resposta recusada ficaria presa na chave e a nova tentativa nunca chamaria o provedor.
 
 ## Arquitetura vigente
 
@@ -47,6 +49,8 @@ Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`
 ## Riscos atuais
 
 - **Qualidade da transcrição automática não revisada** (impacto médio): na transcrição de 16/09, 9 dos 78 trechos são repetição de um bloco anterior — o modelo repetiu uma seção. Os tempos são reescalados por `fitTranscriptToDuration()` assumindo drift linear, hipótese sem ground truth para o meio do vídeo. Mitigação: trechos ficam `ai_unreviewed` e `approximate`; revisão humana antes de virar cartão.
+- **Truncamento do modelo é intermitente** (impacto médio): em 17/09 o mesmo modelo devolveu 13% do vídeo em 6 s, com 70.660 tokens de vídeo servidos do cache implícito do Gemini. O piso de TASK-009 recusa o resultado, mas não impede a chamada nem o custo. Mitigação: teto de US$ 1 e mensagem que informa a cobertura medida.
+- **Falso positivo do piso de cobertura** (impacto baixo): vídeo com encerramento longo sem fala pode ficar abaixo de 80% e ser recusado depois de a chamada já ter sido paga. Mitigação: a mensagem informa quanto foi coberto, e `MIN_TRANSCRIPT_COVERAGE` é uma constante única em `src/domain/content.ts`.
 - **Custo por minuto de vídeo ainda não medido em conta paga** (impacto baixo): a conta Gemini está em nível gratuito, então a reserva `settled` de US$ 0,058 é contador interno, não fatura. Mitigação: manter teto de US$ 1 e conciliar quando o faturamento for ativado.
 - **Piloto de voz e avaliação humana pendentes** (impacto médio): latência e qualidade do caminho de fala continuam sem medição.
 - **Revisão de preço vence em 31 dias** (impacto: bloqueio de chamadas): `AI_PRICES_REVIEWED_ON=2026-09-15`; ao ativar a IA, o vencimento passa a bloquear novas chamadas até atualização.

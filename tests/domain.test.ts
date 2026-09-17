@@ -6,6 +6,7 @@ import {
   validateVideoTranscriptionDuration,
   videoTranscript,
   fitTranscriptToDuration,
+  assertTranscriptCoverage,
 } from "../src/domain/content";
 import { initialCard, scheduleCard, xpLevel } from "../src/domain/review";
 import { tokenCostMicros, budgetPeriod } from "../src/server/budget";
@@ -161,5 +162,38 @@ describe("Ajuste de tempo da transcrição de vídeo", () => {
     expect(() =>
       fitTranscriptToDuration([{ startMs: 0, endMs: 837000000 }], 837000),
     ).toThrow();
+  });
+});
+
+describe("Piso de cobertura da transcrição de vídeo", () => {
+  it("recusa a resposta truncada de 2026-09-17 dizendo quanto foi coberto", () => {
+    // Caso real: 5 trechos cobrindo 111 s de um vídeo de 837 s.
+    const segments = [
+      { startMs: 0, endMs: 11000 },
+      { startMs: 58000, endMs: 111000 },
+    ];
+    expect(() => assertTranscriptCoverage(segments, 837000)).toThrow(
+      "13% do vídeo",
+    );
+    try {
+      assertTranscriptCoverage(segments, 837000);
+    } catch (error) {
+      expect(error).toMatchObject({ code: "INCOMPLETE_TRANSCRIPT" });
+      expect((error as Error).message).toContain("1min 51s de 13min 57s");
+    }
+  });
+
+  it("aceita transcrição completa e encerramento curto sem fala", () => {
+    expect(assertTranscriptCoverage([{ endMs: 837000 }], 837000)).toBe(837000);
+    // Vinheta final de 90 s: 89% do vídeo, dentro da folga do piso.
+    expect(assertTranscriptCoverage([{ endMs: 747000 }], 837000)).toBe(747000);
+  });
+
+  it("não deixa a ordem de checagem depender do reescalonamento", () => {
+    // Drift do provedor devolve tempos além da duração: cobertura sobra, e o
+    // ajuste continua sendo quem cuida disso.
+    const segments = [{ startMs: 0, endMs: 936000 }];
+    expect(assertTranscriptCoverage(segments, 837000)).toBe(936000);
+    expect(fitTranscriptToDuration(segments, 837000)[0].endMs).toBe(837000);
   });
 });

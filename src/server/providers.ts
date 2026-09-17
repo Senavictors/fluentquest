@@ -10,6 +10,7 @@ import {
   segmentSupport,
   validateVideoTranscriptionDuration,
   fitTranscriptToDuration,
+  assertTranscriptCoverage,
   youtubeId,
 } from "../domain/content";
 import {
@@ -275,6 +276,50 @@ function normalizeOpenAIUsage(usage: {
     throw new AppError("USAGE_UNKNOWN", "Medição de uso incompleta.", 502);
   return { input, output };
 }
+// Uma resposta que chegou e foi conciliada já custou dinheiro: se ela não passa
+// na validação, o defeito é do modelo ou do nosso contrato — não é o provedor
+// estando fora do ar. Até 2026-09-17 o ZodError caía no catch genérico e virava
+// PROVIDER_UNAVAILABLE; uma transcrição inteira foi paga, descartada sem
+// registro e diagnosticada como indisponibilidade.
+function parseProviderOutput(
+  purpose: string,
+  model: string,
+  text: string,
+  schema: z.ZodType,
+) {
+  const invalid = (detail: string) => {
+    console.error("AI_INVALID_OUTPUT", {
+      purpose,
+      model,
+      detail,
+      output: text.slice(0, 4000),
+    });
+    return new AppError(
+      "INVALID_PROVIDER_OUTPUT",
+      `A resposta do provedor chegou e foi cobrada, mas não passou na validação: ${detail} Nada foi salvo; o texto bruto está no log do servidor, em AI_INVALID_OUTPUT.`,
+      502,
+      true,
+    );
+  };
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw invalid("a resposta não é JSON válido.");
+  }
+  const result = schema.safeParse(value);
+  if (!result.success)
+    throw invalid(
+      result.error.issues
+        .slice(0, 3)
+        .map((issue) =>
+          issue.path.length
+            ? `${issue.path.join(".")}: ${issue.message}`
+            : issue.message,
+        )
+        .join(" "),
+    );
+}
 async function infer(
   userId: string,
   purpose: string,
@@ -322,12 +367,19 @@ async function infer(
       }),
     )
     .digest("hex");
-  const cached = (
-    await query("SELECT value FROM result_cache WHERE key=$1 AND user_id=$2", [
-      cacheKey,
-      userId,
-    ])
-  )[0];
+  // Vídeo fica fora do cache de resultado. O cache existe para não pagar duas
+  // vezes pela mesma pergunta, mas para transcrição o único repeat possível é a
+  // nova tentativa depois de uma recusa (o worker barra fonte que já tem
+  // segmentos com TRANSCRIPT_EXISTS). Cachear aqui prenderia a resposta
+  // recusada na chave e a nova tentativa nunca chamaria o provedor.
+  const cached = video
+    ? undefined
+    : (
+        await query(
+          "SELECT value FROM result_cache WHERE key=$1 AND user_id=$2",
+          [cacheKey, userId],
+        )
+      )[0];
   if (cached) {
     onText?.(cached.value.text);
     return cached.value.text as string;
@@ -579,11 +631,12 @@ async function infer(
         502,
         true,
       );
-    if (schema) schema.parse(JSON.parse(text));
-    await query(
-      "INSERT INTO result_cache(key,user_id,value) SELECT $1,$2,$3 WHERE NOT EXISTS(SELECT 1 FROM deletion_requests WHERE user_id=$2) ON CONFLICT DO NOTHING",
-      [cacheKey, userId, JSON.stringify({ text })],
-    );
+    if (schema) parseProviderOutput(purpose, model, text, schema);
+    if (!video)
+      await query(
+        "INSERT INTO result_cache(key,user_id,value) SELECT $1,$2,$3 WHERE NOT EXISTS(SELECT 1 FROM deletion_requests WHERE user_id=$2) ON CONFLICT DO NOTHING",
+        [cacheKey, userId, JSON.stringify({ text })],
+      );
     return text;
   } catch (error) {
     const status = Number((error as { status?: number }).status);
@@ -717,6 +770,7 @@ export const gemini: TutorProvider &
       "gemini",
     );
     const parsed = videoTranscript.parse(JSON.parse(raw));
+    assertTranscriptCoverage(parsed.segments, durationMs);
     return {
       ...parsed,
       segments: fitTranscriptToDuration(parsed.segments, durationMs),

@@ -57,8 +57,11 @@ beforeEach(() => {
   vi.stubEnv("OPENAI_INPUT_USD_PER_MILLION", "0.15");
   vi.stubEnv("OPENAI_OUTPUT_USD_PER_MILLION", "0.6");
   vi.stubEnv("OPENAI_MODEL", "gpt-4o-mini");
-  mocks.query.mockResolvedValue([{ n: 0 }]);
-  mocks.query.mockResolvedValueOnce([]);
+  // Cache sempre vazio, disjuntor sempre fechado. Responder por SQL em vez de
+  // por ordem mantém o fixture válido para chamadas que pulam o cache (vídeo).
+  mocks.query.mockImplementation(async (sql: string) =>
+    sql.includes("result_cache") ? [] : [{ n: 0 }],
+  );
   mocks.reserve.mockResolvedValue("reservation-fixture");
   mocks.create.mockResolvedValue({
     output_text: "Fixture response",
@@ -266,7 +269,10 @@ describe("Transcrição de vídeo por URL sem tráfego externo", () => {
     mocks.create.mockResolvedValue({
       output_text: JSON.stringify({
         language: "en",
-        segments: [{ startMs: 0, endMs: 12000, text: "A faithful fixture." }],
+        segments: [
+          { startMs: 0, endMs: 12000, text: "A faithful fixture." },
+          { startMs: 480000, endMs: 495000, text: "And its ending." },
+        ],
       }),
       status: "completed",
       usage: {
@@ -342,7 +348,7 @@ describe("Transcrição de vídeo por URL sem tráfego externo", () => {
     mocks.create.mockResolvedValue({
       output_text: JSON.stringify({
         language: "en",
-        segments: [{ startMs: 0, endMs: 1000, text: "Fixture." }],
+        segments: [{ startMs: 0, endMs: 60000, text: "Fixture." }],
       }),
       status: "completed",
       usage: {
@@ -373,5 +379,119 @@ describe("Transcrição de vídeo por URL sem tráfego externo", () => {
       "reservation-fixture",
       expect.objectContaining({ model: "gemini-3.8-flash", micros: 150 }),
     );
+  });
+
+  it("recusa a resposta truncada de 2026-09-17 e mantém a conciliação", async () => {
+    // 5 trechos até 111 s de um vídeo de 837 s: schema satisfeito, vídeo não.
+    mocks.create.mockResolvedValue({
+      output_text: JSON.stringify({
+        language: "en",
+        segments: [
+          { startMs: 0, endMs: 11000, text: "This here is a fixture." },
+          { startMs: 58000, endMs: 111000, text: "Let's get to it." },
+        ],
+      }),
+      status: "completed",
+      usage: {
+        total_input_tokens: 76332,
+        total_output_tokens: 378,
+        total_tokens: 76710,
+      },
+    });
+    await expect(
+      gemini.transcribeVideo(
+        "user",
+        "https://www.youtube.com/watch?v=abcdefghijk",
+        837000,
+      ),
+    ).rejects.toMatchObject({ code: "INCOMPLETE_TRANSCRIPT" });
+    // A chamada aconteceu e foi cobrada; recusar o texto não desfaz isso.
+    expect(mocks.settle).toHaveBeenCalledTimes(1);
+    expect(mocks.fail).not.toHaveBeenCalled();
+  });
+
+  it("não guarda transcrição de vídeo em cache, para não prender a nova tentativa", async () => {
+    mocks.create.mockResolvedValue({
+      output_text: JSON.stringify({
+        language: "en",
+        segments: [{ startMs: 0, endMs: 60000, text: "Fixture." }],
+      }),
+      status: "completed",
+      usage: {
+        total_input_tokens: 100,
+        total_output_tokens: 20,
+        total_tokens: 120,
+      },
+    });
+    await gemini.transcribeVideo("user", "https://youtu.be/abcdefghijk", 60000);
+    expect(
+      mocks.query.mock.calls.some(([sql]) =>
+        sql.includes("INSERT INTO result_cache"),
+      ),
+    ).toBe(false);
+    expect(
+      mocks.query.mock.calls.some(([sql]) =>
+        sql.includes("SELECT value FROM result_cache"),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("Resposta cobrada que não passa na validação", () => {
+  it("não chama de indisponibilidade do provedor um schema reprovado", async () => {
+    mocks.create.mockResolvedValue({
+      output_text: JSON.stringify({
+        language: "en",
+        segments: [
+          { startMs: 20000, endMs: 30000, text: "Out of order." },
+          { startMs: 1000, endMs: 5000, text: "Earlier." },
+        ],
+      }),
+      status: "completed",
+      usage: {
+        total_input_tokens: 50,
+        total_output_tokens: 10,
+        total_tokens: 60,
+      },
+    });
+    await expect(
+      gemini.transcribeVideo("user", "https://youtu.be/abcdefghijk", 60000),
+    ).rejects.toMatchObject({ code: "INVALID_PROVIDER_OUTPUT" });
+    expect(mocks.settle).toHaveBeenCalledTimes(1);
+  });
+
+  it("separa resposta que não é JSON de falha de rede", async () => {
+    mocks.create.mockResolvedValue({
+      output_text: "Desculpe, não consegui transcrever este vídeo.",
+      status: "completed",
+      usage: {
+        total_input_tokens: 50,
+        total_output_tokens: 10,
+        total_tokens: 60,
+      },
+    });
+    await expect(
+      gemini.transcribeVideo("user", "https://youtu.be/abcdefghijk", 60000),
+    ).rejects.toMatchObject({ code: "INVALID_PROVIDER_OUTPUT" });
+  });
+
+  it("não guarda em cache um resultado que reprovou na validação", async () => {
+    mocks.create.mockResolvedValue({
+      output_text: "{ não é json }",
+      status: "completed",
+      usage: {
+        total_input_tokens: 50,
+        total_output_tokens: 10,
+        total_tokens: 60,
+      },
+    });
+    await expect(
+      gemini.support("user", "A sentence to support."),
+    ).rejects.toMatchObject({ code: "INVALID_PROVIDER_OUTPUT" });
+    expect(
+      mocks.query.mock.calls.some(([sql]) =>
+        sql.includes("INSERT INTO result_cache"),
+      ),
+    ).toBe(false);
   });
 });
