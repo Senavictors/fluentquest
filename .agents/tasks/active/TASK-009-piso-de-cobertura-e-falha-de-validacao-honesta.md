@@ -152,6 +152,34 @@ Dois testes de provedor que já existiam passaram a falhar com o piso ligado, po
 - `npm run test:integration`: 30/30, sem nenhuma chamada de IA.
 - Verificação do defeito original, no banco: fonte `c93d484d` com 5 trechos, `max(end_ms)=111000` para `duration_ms=837000`; jobs `7b43713f` (`PROVIDER_UNAVAILABLE`, 4.404 tokens de saída conciliados) e `34a73a86` (`ready`, 378 tokens de saída, 70.660 tokens de vídeo em cache implícito do provedor).
 
+## Complemento — 2026-09-17, caso `2Bs0Ink_-Uo`
+
+### O que apareceu
+
+Logo após a correção acima, a transcrição do vídeo `2Bs0Ink_-Uo` ("JEV Breakdown", Rob Shocks, fonte `6fc332de-41c8-4de2-a7b9-3d9153b43d60`) falhou quatro vezes seguidas — três com `INVALID_TRANSCRIPT_TIME` e uma com `PROVIDER_UNAVAILABLE`. A duração foi conferida na própria página do YouTube: 636 s exatos, igual ao `duration_ms` gravado. O parser ISO-8601 não tem culpa.
+
+`fitTranscriptToDuration` recusa quando o maior `endMs` passa de `durationMs * MAX_TIME_DRIFT` (1,5), ou seja 954.000 ms. O Gemini devolveu tempos além disso para um vídeo de 636 s. Em 2026-09-16, no vídeo de 837 s, o drift medido tinha sido de 1,118×.
+
+As três chamadas recusadas foram conciliadas: 5.158, 5.079 e 3.253 tokens de saída (US$ 0,030 + 0,030 + 0,026). O volume sugere transcrição completa — o vídeo de 837 s que rendeu 78 trechos usou 5.676 tokens de saída. Mas é inferência: **nenhum número da linha do tempo sobrou para conferir**, porque `INVALID_TRANSCRIPT_TIME` é lançado depois do `infer` e o log `AI_INVALID_OUTPUT` criado nesta task só cobre a validação de schema, dentro do `infer`. É o mesmo defeito que a task corrigiu, sobrevivendo numa borda que ficou aberta.
+
+### Correção adicional
+
+`src/server/providers.ts`: as duas recusas pós-conciliação de `transcribeVideo` passam a registrar `AI_REJECTED_TRANSCRIPT` com código, duração, contagem de trechos, linha do tempo inteira, texto bruto e — o ponto — `lastEndMs` e `maxEndMs` **separados**. A separação existe porque há duas explicações possíveis, com correções opostas:
+
+- **drift acumulado**, com todos os tempos esticados proporcionalmente: o reescalonamento linear resolve e `MAX_TIME_DRIFT = 1.5` é que está apertado;
+- **um trecho isolado com tempo absurdo**: `Math.max` sobre todos os `endMs` deixa um único trecho ruim derrubar a transcrição inteira, e reescalar pioraria.
+
+`tests/providers.test.ts` ganhou dois casos: o registro da linha do tempo recusada, e um que documenta a segunda sensibilidade — trechos terminando em 12 s, 9.990 s e 630 s num vídeo de 636 s deixam `lastEndMs` dentro da duração e só `maxEndMs` estoura, e ainda assim tudo é recusado.
+
+### Decisão deliberadamente adiada
+
+`MAX_TIME_DRIFT` **não foi alterado**. Aumentar o teto às cegas significa aceitar transcrição com tempos mais de 50% errados, reescalados por uma hipótese de linearidade que o próprio `CONTEXT.md` registra como não verificada. A decisão espera o primeiro `AI_REJECTED_TRANSCRIPT` real.
+
+### Pendências abertas por este complemento
+
+- Uma transcrição real de `2Bs0Ink_-Uo` com o log novo ligado, para escolher entre as duas correções. Gera custo (~US$ 0,03) e depende de autorização.
+- **Saldo travado:** 10 reservas em estado `unknown` somam 589.697 micros (US$ 0,59) do teto de US$ 1,00, sobra de chamadas ambíguas de 15 e 16/09. O consumo real do mês é US$ 0,19, mas o disponível caiu para US$ 0,22. Precisa de conciliação — assunto separado desta task.
+
 ## Handoff
 
 Não aplicável enquanto a task avançar nesta sessão.

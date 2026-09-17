@@ -770,11 +770,34 @@ export const gemini: TutorProvider &
       "gemini",
     );
     const parsed = videoTranscript.parse(JSON.parse(raw));
-    assertTranscriptCoverage(parsed.segments, durationMs);
-    return {
-      ...parsed,
-      segments: fitTranscriptToDuration(parsed.segments, durationMs),
-    };
+    try {
+      assertTranscriptCoverage(parsed.segments, durationMs);
+      return {
+        ...parsed,
+        segments: fitTranscriptToDuration(parsed.segments, durationMs),
+      };
+    } catch (error) {
+      // Recusa depois da conciliação: a chamada já custou. Sem este registro a
+      // transcrição some sem deixar um número para diagnosticar — foi assim que
+      // três tentativas de 2026-09-17 foram pagas e descartadas em silêncio.
+      // `maxEndMs` separado de `lastEndMs` é o que distingue drift acumulado de
+      // um único trecho com tempo absurdo envenenando o Math.max.
+      const ends = parsed.segments.map((segment) => segment.endMs);
+      console.error("AI_REJECTED_TRANSCRIPT", {
+        code: (error as AppError).code,
+        durationMs,
+        segments: parsed.segments.length,
+        firstStartMs: parsed.segments[0]?.startMs,
+        lastEndMs: ends[ends.length - 1],
+        maxEndMs: Math.max(...ends),
+        timeline: parsed.segments.map((segment) => [
+          segment.startMs,
+          segment.endMs,
+        ]),
+        output: raw.slice(0, 4000),
+      });
+      throw error;
+    }
   },
 };
 export const openai: TutorProvider & SegmentSupporter & LessonGenerator = {

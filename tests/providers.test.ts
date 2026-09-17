@@ -410,6 +410,73 @@ describe("Transcrição de vídeo por URL sem tráfego externo", () => {
     expect(mocks.fail).not.toHaveBeenCalled();
   });
 
+  it("registra a linha do tempo recusada em vez de perder a chamada paga", async () => {
+    // Caso real de 2026-09-17: vídeo de 636 s recusado três vezes seguidas por
+    // INVALID_TRANSCRIPT_TIME, sem que restasse um número para diagnosticar.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.create.mockResolvedValue({
+      output_text: JSON.stringify({
+        language: "en",
+        segments: [
+          { startMs: 0, endMs: 12000, text: "Opening." },
+          { startMs: 600000, endMs: 990000, text: "Closing." },
+        ],
+      }),
+      status: "completed",
+      usage: {
+        total_input_tokens: 58032,
+        total_output_tokens: 5158,
+        total_tokens: 63190,
+      },
+    });
+    await expect(
+      gemini.transcribeVideo("user", "https://youtu.be/abcdefghijk", 636000),
+    ).rejects.toMatchObject({ code: "INVALID_TRANSCRIPT_TIME" });
+    expect(logged).toHaveBeenCalledWith(
+      "AI_REJECTED_TRANSCRIPT",
+      expect.objectContaining({
+        code: "INVALID_TRANSCRIPT_TIME",
+        durationMs: 636000,
+        segments: 2,
+        lastEndMs: 990000,
+        maxEndMs: 990000,
+      }),
+    );
+    logged.mockRestore();
+  });
+
+  it("deixa visível que um único trecho absurdo derruba a transcrição inteira", async () => {
+    // Math.max sobre todos os endMs: um trecho fora da curva decide sozinho.
+    // Comportamento atual, registrado aqui para a decisão de MAX_TIME_DRIFT não
+    // ser tomada sem enxergar esta sensibilidade.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.create.mockResolvedValue({
+      output_text: JSON.stringify({
+        language: "en",
+        segments: [
+          { startMs: 0, endMs: 12000, text: "Opening." },
+          { startMs: 300000, endMs: 9990000, text: "Um tempo absurdo." },
+          { startMs: 600000, endMs: 630000, text: "Closing." },
+        ],
+      }),
+      status: "completed",
+      usage: {
+        total_input_tokens: 100,
+        total_output_tokens: 20,
+        total_tokens: 120,
+      },
+    });
+    await expect(
+      gemini.transcribeVideo("user", "https://youtu.be/abcdefghijk", 636000),
+    ).rejects.toMatchObject({ code: "INVALID_TRANSCRIPT_TIME" });
+    expect(logged).toHaveBeenCalledWith(
+      "AI_REJECTED_TRANSCRIPT",
+      // lastEndMs cabe na duração; só maxEndMs estoura. O log separa os dois.
+      expect.objectContaining({ lastEndMs: 630000, maxEndMs: 9990000 }),
+    );
+    logged.mockRestore();
+  });
+
   it("não guarda transcrição de vídeo em cache, para não prender a nova tentativa", async () => {
     mocks.create.mockResolvedValue({
       output_text: JSON.stringify({
