@@ -1,11 +1,11 @@
 ---
 id: TASK-004
 title: Adaptador Gemini de transcrição por URL de vídeo e orçamento por minuto
-status: blocked
+status: active
 type: integration
 owner: ia-orcamento
 created_at: 2026-09-14
-updated_at: 2026-09-15
+updated_at: 2026-09-16
 affected_modules: [src/server/providers.ts, src/server/budget.ts, src/worker.ts, migrations/004_budget_reservation_provider_model.sql, docs/INTEGRACOES.md]
 related_use_cases: [transcrição de vídeo por URL]
 related_adrs: [ADR-001]
@@ -121,3 +121,30 @@ CA-01, CA-02, CA-04, etapa 5 e teste manual dependem de uma resposta real com us
 ## Handoff
 
 Continuar nesta task após a janela do disjuntor e quando o endpoint de vídeo do Gemini estiver disponível.
+
+## Desbloqueio — 2026-09-16
+
+### Diagnóstico
+
+O bloqueio nunca foi indisponibilidade do provedor. O 503/500 "high demand" era sintoma, não causa. Três defeitos independentes, isolados por bissecção da requisição contra `v1beta/interactions`:
+
+1. **`processing: "agentic"` em `gemini-3.5-flash-lite`.** O modelo não sustenta o laço de ferramentas do processamento agêntico: a mesma URL alterna entre HTTP 400 "Model generated invalid JSON syntax" e HTTP 500 "high demand". Sem a flag, o mesmo vídeo de 13 min 57 s é lido normalmente (76.166 tokens de vídeo, HTTP 200).
+2. **`minItems`/`maxItems` no schema de saída estruturada.** Vinham de `z.array(...).min(1).max(240)` em `videoTranscript` e não estavam em `unsupportedGeminiSchemaKeywords`. O Gemini recusa a requisição inteira com HTTP 400 "Request contains an invalid argument" — reproduzido com prompt de texto puro, sem vídeo, em 0,6 s. Afetava também `generatedUnit` (geração de atividade pelo Gemini), hoje mascarado por `AI_TEXT_PROVIDER=openai`.
+3. **Drift de tempo tratado como erro fatal.** O Gemini estima os tempos e acumula drift: 837 s de vídeo voltaram com o trecho final em 936 s (~12%), sendo esse trecho o encerramento real. A validação `endMs > durationMs + 2000` rejeitava a transcrição inteira.
+
+Verificado que a chave `...b5OA` é válida (projeto `gen-lang-client-0923897944`, nível gratuito) e que `gemini-3.5-flash-lite` é o único modelo testado que aceita URL do YouTube de forma confiável: `gemini-3.5-flash` e `gemini-3.6-flash` retornam 400 "invalid argument", `gemini-3.5-transcribe` recusa a modalidade, `gemini-3.8-flash` aceita mas excede 300 s.
+
+### Correções
+
+- `src/server/providers.ts`: `gemini-3.5-flash-lite` sai de `agenticVideoModels`; `minItems`/`maxItems` entram em `unsupportedGeminiSchemaKeywords`; a mensagem do 400 deixa de afirmar que o Gemini "recusou o vídeo após processá-lo" (causa falsa para um 400 de requisição).
+- `src/domain/content.ts`: novo `fitTranscriptToDuration()` — reescala a linha do tempo por `durationMs / lastEnd` quando há drift, e mantém a recusa acima de `MAX_TIME_DRIFT` (1,5×), que é erro de unidade e não drift.
+
+### Resultado real
+
+Transcrição concluída pela interface: **78 trechos**, 983 ms → 837.000 ms, zero fora da duração, `origin=provider_video_url`, `time_accuracy=approximate`, `quality_status=ai_unreviewed`. Fonte em `text_ready`. Reserva `settled` (US$ 0,058 no contador do app; conta em nível gratuito, sem fatura real).
+
+### Pendências
+
+- **Qualidade não revisada:** 9 dos 78 trechos são repetição de um bloco anterior (69 inícios distintos) — o modelo repetiu uma seção por volta de 00:53/03:13. Revisão humana do texto continua pendente, como previsto por `ai_unreviewed`.
+- **Custo por minuto:** medido em conta gratuita, portanto sem preço real conciliado. CA-02 permanece aberto até um piloto com faturamento ativo.
+- **Drift linear é hipótese:** o reescalonamento assume drift acumulativo aproximadamente linear, apoiado em o último trecho ser o encerramento real do vídeo. Não há ground truth para os tempos do meio.

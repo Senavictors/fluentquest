@@ -1359,16 +1359,20 @@ export async function handle(request: Request, parts: string[]) {
       )[0];
       if (!segment)
         throw new AppError("NOT_FOUND", "Trecho não encontrado.", 404);
+      if (segment.support)
+        return json({ support: segment.support, origin: segment.origin });
+      // Apoio gerado antes da migração 005: texto corrido, sem os quatro
+      // campos. Continua sendo devolvido como está — regenerar custaria uma
+      // chamada de IA para cada trecho já traduzido.
       if (segment.translation)
-        return json({ text: segment.translation, origin: segment.origin });
+        return json({ legacyText: segment.translation, origin: segment.origin });
       requireAI();
-      const text = await textAI.explain(
-        uid,
-        segment.text,
-        "Traduza apenas esta frase para português.",
-      );
-      await query("UPDATE segments SET translation=$2 WHERE id=$1", [id, text]);
-      return json({ text, origin: integrationStatus().provider });
+      const support = await textAI.support(uid, segment.text);
+      await query("UPDATE segments SET support=$2 WHERE id=$1", [
+        id,
+        JSON.stringify(support),
+      ]);
+      return json({ support, origin: integrationStatus().provider });
     }
     if (resource === "usage" && method === "GET") return json(await usage(uid));
     if (resource === "progress" && method === "GET")

@@ -336,6 +336,94 @@ progress::-webkit-progress-value {
 .sidebar > .wordmark {
   margin-left: 7px;
 }
+/* Barra recolhida: vira trilho de ícones e devolve 144px ao conteúdo, que é
+   o que a sala de estudo precisa para pôr vídeo e transcrição lado a lado.
+   Os rótulos continuam no DOM, apenas fora da vista, para que o nome
+   acessível de cada item permaneça. */
+.app-shell.rail {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+.app-shell.rail .sidebar {
+  padding: 25px 10px 20px;
+  align-items: center;
+}
+/* Recolhido, o wordmark vira a marca "F." — cortar "FluentQuest" no meio
+   pareceria defeito, não decisão. */
+.app-shell.rail .sidebar > .wordmark {
+  margin-left: 0;
+  font-size: 0;
+}
+.app-shell.rail .sidebar > .wordmark::before {
+  content: "F";
+  font-size: 22px;
+}
+.app-shell.rail .sidebar > .wordmark span {
+  font-size: 22px;
+}
+.app-shell.rail .sidebar nav {
+  align-self: stretch;
+}
+.app-shell.rail .nav-item {
+  justify-content: center;
+  padding: 10px 0;
+  position: relative;
+}
+.app-shell.rail .nav-item > span,
+.app-shell.rail .profile-link > span:not(.avatar-small),
+.app-shell.rail .rail-toggle > span,
+.app-shell.rail .usage-small > .small-label,
+.app-shell.rail .usage-small > div,
+.app-shell.rail .usage-small > .quiet {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.app-shell.rail .nav-count {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  margin: 0;
+  font-size: 10px;
+  color: var(--accent);
+}
+/* O valor sai, mas o orçamento continua legível como barra — ela mantém o
+   rótulo acessível e ocupa a largura do trilho, em vez de sobrar como risco. */
+.app-shell.rail .usage-small {
+  padding: 0 4px 16px;
+}
+.app-shell.rail .usage-small progress {
+  width: 100%;
+  margin: 0;
+}
+.app-shell.rail .profile-link {
+  justify-content: center;
+  padding: 10px 0;
+}
+.app-shell.rail .profile-link > svg {
+  display: none;
+}
+.rail-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.rail-toggle:hover:not(:disabled) {
+  color: var(--accent);
+}
+.app-shell.rail .rail-toggle {
+  justify-content: center;
+  gap: 0;
+}
 .sidebar nav {
   display: flex;
   flex-direction: column;
@@ -1025,20 +1113,156 @@ label.search {
   align-items: center;
   gap: 4px;
 }
+/* A sala de estudo é área de trabalho, não documento. Antes a página inteira
+   rolava, então ler a transcrição empurrava o vídeo para fora da tela — e a
+   tarefa aqui é justamente ouvir e ler ao mesmo tempo. Agora a altura é a da
+   janela e cada região rola por conta própria: o vídeo permanece à vista. */
+/* A altura é derivada, nunca calculada: o cabeçalho desta tela muda de altura
+   conforme o título quebra e conforme avisos aparecem (medido entre 198px e
+   355px na mesma tela), então qualquer `calc()` fixo erra e devolve a rolagem
+   de página que estamos justamente eliminando. */
+/* Nesta tela o cabeçalho é referência, não manchete: com a altura presa à
+   janela, cada pixel que ele toma sai do vídeo e da transcrição, que são o
+   trabalho. Compactado aqui e só aqui — as demais telas seguem editoriais. */
+.study .study-heading {
+  padding: 15px 32px 13px;
+}
+.study .study-heading h1 {
+  font-size: 19px;
+  margin: 3px 0;
+}
+.study > .notice {
+  margin: 0;
+  padding: 11px 32px;
+  font-size: 13px;
+}
+.study > .notice p {
+  margin: 0;
+}
+.app-shell:has(.study-main) {
+  height: 100dvh;
+  overflow: hidden;
+}
+.study-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.study {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.study > *:not(.study-grid) {
+  flex: 0 0 auto;
+}
 .study-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 350px;
-  min-height: calc(100dvh - 127px);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .study-content {
   padding: 26px 30px 20px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.study-media {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.study-reading {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* Empilhado, o vídeo é limitado por altura, não por largura: ocupando a coluna
+   inteira ele sozinho passava de 400px e não sobrava transcrição. Aqui a
+   moldura manda na altura e a largura segue a proporção, centrada. */
+/* Faixa empilhada (tablet e notebook estreito): o vídeo é limitado por altura,
+   não por largura. Ocupando a coluna inteira ele sozinho passava de 400px e
+   não sobrava transcrição. A moldura manda na altura, a largura segue a
+   proporção, e o piso evita que uma janela baixa o reduza a uma tira. */
+/* Onde a altura é presa à janela, cada pixel de mobiliário sai da transcrição,
+   que é o que se lê. Cabeçalho, paginação e rodapé cedem; os trechos ficam. */
+@media (min-width: 1001px) {
+  .study-reading .transcript-heading {
+    margin: 0 0 10px;
+  }
+  .study-reading .pagination {
+    margin: 10px 0 0;
+  }
+  .study-reading .study-bottom {
+    margin-top: 12px;
+    padding-top: 11px;
+  }
+}
+@media (min-width: 1001px) and (max-width: 1239px) {
+  .study-media {
+    max-height: 42%;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Precisa de altura definida pelo flex, senão `height: 100%` no iframe
+     resolve contra altura indefinida e o vídeo colapsa para zero. */
+  .study-media .player-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+  }
+  .study-media .youtube-host {
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+  }
+}
+/* Vídeo ao lado do texto — o arranjo de transmissão ao vivo — apenas quando a
+   coluna de conteúdo comporta as duas sem espremer a medida de leitura. Com a
+   barra lateral recolhida sobram 144px, então o limiar cai junto: recolher a
+   barra passa a habilitar o lado a lado. */
+/* Vídeo ao lado do texto — o arranjo de transmissão ao vivo. Aqui a
+   transcrição recebe a altura inteira da coluna em vez de disputá-la com o
+   vídeo, que é o que torna possível ouvir e ler ao mesmo tempo numa janela
+   baixa. Entre 1240 e 1439 o painel da direita cede 50px para que a medida de
+   leitura não fique estreita demais. */
+@media (min-width: 1240px) {
+  .study-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+  .study-content {
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 100%);
+    column-gap: 30px;
+  }
+  .study-media {
+    align-self: start;
+  }
+}
+@media (min-width: 1440px) {
+  .study-grid {
+    grid-template-columns: minmax(0, 1fr) 350px;
+  }
+  .study-content {
+    grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+  }
 }
 .study-panel {
   border-left: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   background: color-mix(in srgb, var(--paper) 35%, var(--bg));
 }
 .study-panel .tabs {
@@ -1145,8 +1369,11 @@ label.search {
   font-size: 18px;
   margin: 0;
 }
+/* A transcrição ocupa a altura que sobra da região e rola sozinha, em vez de
+   um teto fixo que obrigava a rolar a página. */
 .transcript {
-  max-height: 430px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   scrollbar-gutter: stable;
 }
@@ -1182,23 +1409,118 @@ label.search {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.segment-translation {
+/* Apoio do trecho: aparato na margem da linha selecionada. Sem superfície
+   própria — a linha ativa já traz a sua, e uma segunda moldura só afastaria o
+   apoio do texto a que ele pertence. A hierarquia é feita por escala, cor e
+   fios, na ordem tradução (resposta) → ponto e exemplo (raciocínio) → sua vez
+   (tarefa). */
+.segment-support {
   padding: 0 14px 10px 60px;
 }
-.segment-translation .text-button {
+.segment-support .text-button {
   font-size: 11px;
   min-height: 32px;
   padding: 4px 0;
 }
-.segment-translation p {
-  font-size: 14px;
-  color: var(--accent);
-  margin: 4px 0 9px;
+.support-toggle svg {
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.segment-translation small {
+.support-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+.support-body {
+  margin: 2px 0 10px;
+  animation: support-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes support-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+.support-block + .support-block {
+  margin-top: 13px;
+}
+.support-block dt {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.support-block dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 68ch;
+}
+/* A tradução é o que se procura de relance: maior, e no azul que este app já
+   usa para "isto é a ajuda em português". */
+.support-lead dd,
+.support-lead p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--accent);
+  max-width: 68ch;
+}
+/* O exemplo é inglês dentro de prosa em português: fio de citação e a cor do
+   texto original, não a do apoio. */
+.support-example dd {
+  font-size: 15px;
+  padding-left: 11px;
+  border-left: 1px solid var(--line);
+}
+.support-task {
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+.support-state {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 68ch;
+}
+.support-skeleton {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 5px;
+  max-width: 68ch;
+}
+.support-skeleton span {
+  height: 11px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--line) 25%,
+    var(--surface) 50%,
+    var(--line) 75%
+  );
+  background-size: 240% 100%;
+  animation: support-shimmer 1.1s linear infinite;
+}
+@keyframes support-shimmer {
+  to {
+    background-position: -240% 0;
+  }
+}
+.segment-support small {
   font-size: 10px;
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 .study-bottom {
+  flex: 0 0 auto;
   margin-top: 22px;
   display: flex;
   justify-content: space-between;
@@ -1295,9 +1617,6 @@ label.search {
 }
 .immersed .reading-feature {
   min-height: 270px;
-}
-.immersed .transcript {
-  max-height: 580px;
 }
 .immersed .segment-select {
   font-size: 19px;
@@ -2057,13 +2376,50 @@ code {
   .today-footer {
     margin-top: 28px;
   }
+  /* Em tablet e celular a página volta a rolar: com uma coluna só, prender a
+     altura da janela deixaria vídeo, transcrição e painel disputando o mesmo
+     espaço. O vídeo fica fixo no topo e a transcrição passa por baixo, que
+     preserva a co-presença sem precisar de duas colunas. */
+  .app-shell:has(.study-main) {
+    height: auto;
+    overflow: visible;
+  }
+  .study-main,
+  .study {
+    display: block;
+    overflow: visible;
+  }
   .study-grid,
   .immersed .study-grid {
     grid-template-columns: 1fr;
   }
+  .study-content {
+    display: block;
+    overflow: visible;
+  }
+  .study-media {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg);
+    padding-bottom: 4px;
+    display: block;
+    max-height: none;
+  }
+  .study-media .player-area {
+    display: block;
+  }
+  .study-media .youtube-host {
+    width: 100%;
+    height: auto;
+  }
+  .transcript {
+    max-height: 60dvh;
+  }
   .study-panel {
     border-left: 0;
     border-top: 1px solid var(--line);
+    overflow-y: visible;
   }
   .panel-body {
     padding: 25px;
@@ -2488,8 +2844,15 @@ code {
     min-width: 23px;
     font-size: 10px;
   }
-  .segment-translation {
+  .segment-support {
     padding-left: 42px;
+  }
+  .support-lead dd,
+  .support-lead p {
+    font-size: 15px;
+  }
+  .support-example dd {
+    font-size: 14px;
   }
   .transcript {
     max-height: 400px;

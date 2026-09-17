@@ -163,6 +163,47 @@ export const videoTranscript = z
         message: "A transcrição excede o limite de texto.",
       });
   });
+// O Gemini estima os tempos do vídeo e acumula drift: numa medição de
+// 2026-09-16, um vídeo de 837 s voltou com o trecho final em 936 s (~12% a
+// mais), sendo que esse trecho é o encerramento real do vídeo. O drift é
+// acumulativo e aproximadamente linear, então reescalar a linha do tempo
+// inteira alinha melhor do que cortar a cauda. Acima de MAX_TIME_DRIFT o
+// resultado deixa de ser drift e vira erro de unidade (segundos no lugar de
+// milissegundos, por exemplo) — aí continua sendo recusado.
+export const MAX_TIME_DRIFT = 1.5;
+export function fitTranscriptToDuration<
+  T extends { startMs: number; endMs: number },
+>(segments: T[], durationMs: number): T[] {
+  const lastEnd = Math.max(...segments.map((segment) => segment.endMs));
+  // Tolerância de 2 s absorve arredondamento sem reescalar à toa.
+  if (lastEnd <= durationMs + 2000) return segments;
+  if (lastEnd > durationMs * MAX_TIME_DRIFT)
+    throw new AppError(
+      "INVALID_TRANSCRIPT_TIME",
+      "A transcrição retornou tempos incompatíveis com a duração do vídeo.",
+    );
+  const factor = durationMs / lastEnd;
+  return segments.map((segment) => ({
+    ...segment,
+    startMs: Math.round(segment.startMs * factor),
+    // Garante duração positiva mesmo se o arredondamento colapsar o trecho.
+    endMs: Math.max(
+      Math.round(segment.endMs * factor),
+      Math.round(segment.startMs * factor) + 1,
+    ),
+  }));
+}
+// Apoio de estudo de um trecho. Quatro campos discretos em vez de um texto
+// único: a interface precisa hierarquizar a tradução (o que se procura de
+// relance) acima da explicação, e separar a pergunta, que é tarefa e não
+// leitura. Campos curtos por contrato — este painel é consultado no meio da
+// escuta, não lido como artigo.
+export const segmentSupport = z.object({
+  translation: z.string().trim().min(1).max(600),
+  point: z.string().trim().min(1).max(600),
+  example: z.string().trim().min(1).max(400),
+  question: z.string().trim().min(1).max(400),
+});
 export const sourceInput = z.object({
   kind: z.enum(["youtube", "text", "media"]),
   title: z.string().trim().min(1).max(200),

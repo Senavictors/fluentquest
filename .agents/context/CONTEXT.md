@@ -1,20 +1,24 @@
 # Contexto Atual do Projeto — FluentQuest
 
-Última atualização: 2026-09-15
+Última atualização: 2026-09-16
 
 ## Estado atual
 
 Aplicativo pessoal de inglês para desenvolvedores, local-first e de proprietário único, rodando em `127.0.0.1:3215` (web + worker via `npm run dev`). O MVP local está **completo e verde**: `tsc --noEmit` sem erros, 35/35 testes automatizados, 30/30 cenários de integração sem nenhuma chamada externa, `next build` compilando 4 rotas, e zero violações de acessibilidade/overflow no QA desktop e mobile.
 
-Pilotos reais de texto concluídos em 15/09/2026 com autorização explícita: Gemini 3.5 Flash-Lite e OpenAI `gpt-4o-mini` estão configurados localmente, com preços revisados e teto US$ 1/alerta US$ 0,80. O piloto Gemini conciliou US$ 0,001288; o piloto OpenAI na mesma fonte conciliou US$ 0,000386 (atividade e tutor, com `price_version=openai:2026-09-15`). AI Studio mostra tier gratuito sem faturamento. YouTube Data API v3 usa chave separada e validada: `videos.list` retornou 200 e salvou os metadados oficiais. A transcrição direta por URL foi implementada com Interactions e alcançou o Gemini com o vídeo de 8 min 15 s, mas as inferências válidas retornaram HTTP 500/503 por alta demanda. Zero segmentos parciais; reservas 5xx permanecem `unknown` para conciliação. O fluxo de legenda fornecida do vídeo `fwe81ITBSfI` carregou 53 trechos e gerou atividades pelos dois provedores de texto.
+Pilotos reais de texto concluídos em 15/09/2026 com autorização explícita: Gemini 3.5 Flash-Lite e OpenAI `gpt-4o-mini` estão configurados localmente, com preços revisados e teto US$ 1/alerta US$ 0,80. O piloto Gemini conciliou US$ 0,001288; o piloto OpenAI na mesma fonte conciliou US$ 0,000386 (atividade e tutor, com `price_version=openai:2026-09-15`). AI Studio mostra tier gratuito sem faturamento. YouTube Data API v3 usa chave separada e validada: `videos.list` retornou 200 e salvou os metadados oficiais. A transcrição direta por URL **funciona desde 16/09/2026**: um vídeo de 13 min 57 s produziu 78 trechos reais, dentro da duração, marcados `approximate`/`ai_unreviewed`, com reserva `settled`. Os HTTP 500/503 "high demand" atribuídos antes a indisponibilidade do provedor eram sintoma de três defeitos nossos, corrigidos em TASK-004: `processing: "agentic"` num modelo que não o sustenta, `minItems`/`maxItems` vazando para o schema de saída estruturada (que o Gemini recusa com 400), e drift de tempo do provedor tratado como erro fatal. Detalhe e evidência na seção "Desbloqueio — 2026-09-16" de TASK-004. O fluxo de legenda fornecida do vídeo `fwe81ITBSfI` carregou 53 trechos e gerou atividades pelos dois provedores de texto.
 
 Repositório Git inicializado no bootstrap desta arquitetura (branch `main`), com identidade local `Senavictors <victorsena760@gmail.com>`. Antes disso o projeto vivia sem controle de versão.
 
 ## Iniciativas ativas
 
-TASK-001 está em active: o piloto Gemini de texto foi concluído; voz e avaliação humana continuam pendentes. TASK-002, TASK-003, TASK-005 e TASK-008 estão concluídas. TASK-004 está `blocked` dentro de `active/`: faltam somente transcrição real e medição de custo, impedidas pelo HTTP 503 do provedor. TASK-006 e TASK-007 estão em active: abstração multi-provedor e adaptador OpenAI de texto foram implementados e tiveram piloto real; faltam apenas juízo humano comparativo e conciliação com o painel OpenAI.
+TASK-001 está em active: o piloto Gemini de texto foi concluído; voz e avaliação humana continuam pendentes. TASK-002, TASK-003, TASK-005 e TASK-008 estão concluídas. TASK-004 voltou a `active` (era `blocked`): a transcrição real foi obtida em 16/09; falta medição de custo com faturamento ativo e revisão humana do texto. TASK-006 e TASK-007 estão em active: abstração multi-provedor e adaptador OpenAI de texto foram implementados e tiveram piloto real; faltam apenas juízo humano comparativo e conciliação com o painel OpenAI.
 
 Validação de 15/09: typecheck e build passaram; 35 testes automatizados e 30 cenários de integração. QA isolado confirmou legenda, opção Gemini desabilitada sem IA, proveniência automática e quatro variantes 1440/390 claro/escuro sem violações axe ou overflow. Consulte [VALIDACAO.md](../../docs/VALIDACAO.md) via raiz do projeto.
+
+Em 16/09 o apoio de trecho da sala de estudo deixou de reaproveitar o tutor. A rota `POST /api/segments/:id/translate` chamava `explain()`, cujo prompt sempre anexa "explain one point, give one new example and ask for one original sentence" — por isso um pedido de tradução voltava como miniaula em Markdown, renderizada como texto cru num parágrafo único. Agora existe `SegmentSupporter` com saída estruturada (`segmentSupport`: tradução, ponto, exemplo, pergunta), migração 005 (`segments.support jsonb`) e um painel hierarquizado. Trechos apoiados antes da migração continuam sendo devolvidos como `legacyText`.
+
+Ainda em 16/09, a sala de estudo passou de documento rolável a área de trabalho de altura fixa. Antes, ler a transcrição empurrava o vídeo para fora da tela — e a tarefa é justamente ouvir e ler ao mesmo tempo. Agora a altura é derivada por flex (nunca por `calc()`: o cabeçalho varia entre 198px e 355px conforme título e avisos), cada região rola por si, e a partir de 1240px o vídeo fica ao lado da transcrição. Abaixo de 1000px a página volta a rolar com o vídeo fixo no topo. A barra lateral ganhou recolhimento para trilho de 64px (`localStorage` `fq-rail`), o que devolve 144px à transcrição.
 
 ## Arquitetura vigente
 
@@ -42,7 +46,9 @@ Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`
 
 ## Riscos atuais
 
-- **Transcrição direta de vídeo e piloto de voz/revisão humana pendentes** (impacto médio): o endpoint de vídeo do Gemini esteve indisponível por alta demanda; latência, custo por minuto e qualidade da transcrição direta não foram medidos. Mitigação: legenda fornecida mantém o estudo funcional; nova tentativa consciente após o disjuntor, mantendo teto de US$ 1 e sem retries automáticos.
+- **Qualidade da transcrição automática não revisada** (impacto médio): na transcrição de 16/09, 9 dos 78 trechos são repetição de um bloco anterior — o modelo repetiu uma seção. Os tempos são reescalados por `fitTranscriptToDuration()` assumindo drift linear, hipótese sem ground truth para o meio do vídeo. Mitigação: trechos ficam `ai_unreviewed` e `approximate`; revisão humana antes de virar cartão.
+- **Custo por minuto de vídeo ainda não medido em conta paga** (impacto baixo): a conta Gemini está em nível gratuito, então a reserva `settled` de US$ 0,058 é contador interno, não fatura. Mitigação: manter teto de US$ 1 e conciliar quando o faturamento for ativado.
+- **Piloto de voz e avaliação humana pendentes** (impacto médio): latência e qualidade do caminho de fala continuam sem medição.
 - **Revisão de preço vence em 31 dias** (impacto: bloqueio de chamadas): `AI_PRICES_REVIEWED_ON=2026-09-15`; ao ativar a IA, o vencimento passa a bloquear novas chamadas até atualização.
 - **Perda de dados de estudo** (impacto alto): o banco `fluentquest` guarda cartões, gravações e histórico; backup é manual.
 

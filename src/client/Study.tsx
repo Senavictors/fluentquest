@@ -28,10 +28,80 @@ import { api, clock } from "./http";
 import type {
   Source,
   Segment,
+  SegmentSupport,
   TranscriptionEstimate,
   Unit,
   Vocabulary,
 } from "./types";
+// Apoio de um trecho. Quatro blocos que servem momentos diferentes, então
+// descem em ordem de uso: a tradução é o que se procura de relance e vem
+// primeiro; ponto e exemplo explicam; a pergunta é tarefa, não leitura, e por
+// isso fica separada por um fio. Sem caixa própria — o painel já vive dentro
+// da linha selecionada, e aninhar mais uma superfície só adicionaria moldura.
+function SegmentSupport({
+  support,
+  legacyText,
+  loading,
+  aiReady,
+}: {
+  support: SegmentSupport | null;
+  legacyText: string | null;
+  loading: boolean;
+  aiReady: boolean;
+}) {
+  if (support)
+    return (
+      <dl className="support-body">
+        <div className="support-block support-lead">
+          <dt>Tradução</dt>
+          <dd>{support.translation}</dd>
+        </div>
+        <div className="support-block">
+          <dt>Ponto</dt>
+          <dd>{support.point}</dd>
+        </div>
+        <div className="support-block support-example">
+          <dt>Exemplo</dt>
+          <dd lang="en">{support.example}</dd>
+        </div>
+        <div className="support-block support-task">
+          <dt>Sua vez</dt>
+          <dd>{support.question}</dd>
+        </div>
+      </dl>
+    );
+  if (legacyText)
+    return (
+      <div className="support-body">
+        <div className="support-block support-lead">
+          <p>{legacyText}</p>
+        </div>
+        <small className="quiet">
+          Apoio gerado no formato antigo, em texto corrido.
+        </small>
+      </div>
+    );
+  if (loading)
+    return (
+      <div className="support-body" aria-busy="true">
+        <span className="sr-only">Carregando o apoio deste trecho…</span>
+        <div className="support-skeleton" aria-hidden="true">
+          <span style={{ width: "88%" }} />
+          <span style={{ width: "64%" }} />
+          <span style={{ width: "79%" }} />
+        </div>
+      </div>
+    );
+  return (
+    <div className="support-body">
+      <p className="support-state">
+        {aiReady
+          ? "Não foi possível gerar o apoio deste trecho. Tente novamente."
+          : "Apoio automático: integração não configurada."}
+      </p>
+    </div>
+  );
+}
 const statuses: Record<string, string> = {
   ready: "Pronto",
   text_ready: "Texto disponível",
@@ -757,27 +827,34 @@ export function Study({ sourceId }: { sourceId: string }) {
       return;
     }
     if (!selected) return;
-    if (selected.translation) {
+    if (selected.support || selected.translation) {
       setReveal(true);
       return;
     }
+    // Abre antes de buscar: o esqueleto aparece no lugar onde o conteúdo vai
+    // entrar, em vez de a linha ficar parada sem resposta ao clique.
+    setReveal(true);
     await run(async () => {
-      const result = await api<{ text: string }>(
-        `segments/${selected.id}/translate`,
-        "POST",
-        {},
-      );
+      const result = await api<{
+        support?: SegmentSupport;
+        legacyText?: string;
+      }>(`segments/${selected.id}/translate`, "POST", {});
       setLesson((old) =>
         old
           ? {
               ...old,
               segments: old.segments.map((s) =>
-                s.id === selected.id ? { ...s, translation: result.text } : s,
+                s.id === selected.id
+                  ? {
+                      ...s,
+                      support: result.support ?? s.support,
+                      translation: result.legacyText ?? s.translation,
+                    }
+                  : s,
               ),
             }
           : old,
       );
-      setReveal(true);
     });
   }
   if (fatal)
@@ -884,289 +961,313 @@ export function Study({ sourceId }: { sourceId: string }) {
       </div>
       <div className="study-grid">
         <section className="study-content">
-          <Player
-            source={lesson.source}
-            selected={selected}
-            playerRef={playerRef}
-            onTime={onTime}
-          />
-          {lesson.source.kind !== "text" && (
-            <div className="player-toolbar">
-              <button
-                className="secondary"
-                disabled={selected?.start_ms == null}
-                onClick={() => {
-                  if (selected?.start_ms != null) {
-                    playerRef.current?.seekTo(selected.start_ms / 1000, true);
-                    playerRef.current?.playVideo();
-                  }
-                }}
-              >
-                <Repeat2 size={16} /> Repetir trecho
-              </button>
-              {lesson.source.video_id && (
-                <>
-                  <button
-                    className={loop ? "selected" : ""}
-                    disabled={selected?.end_ms == null}
-                    aria-pressed={loop}
-                    onClick={() => setLoop(!loop)}
-                  >
-                    A–B
-                  </button>
-                  <select
-                    aria-label="Velocidade de reprodução"
-                    onChange={(e) =>
-                      playerRef.current?.setPlaybackRate(Number(e.target.value))
+          <div className="study-media">
+            <Player
+              source={lesson.source}
+              selected={selected}
+              playerRef={playerRef}
+              onTime={onTime}
+            />
+            {lesson.source.kind !== "text" && (
+              <div className="player-toolbar">
+                <button
+                  className="secondary"
+                  disabled={selected?.start_ms == null}
+                  onClick={() => {
+                    if (selected?.start_ms != null) {
+                      playerRef.current?.seekTo(selected.start_ms / 1000, true);
+                      playerRef.current?.playVideo();
                     }
-                    defaultValue="1"
-                  >
-                    <option value="0.5">0,5×</option>
-                    <option value="0.75">0,75×</option>
-                    <option value="1">1×</option>
-                    <option value="1.25">1,25×</option>
-                    <option value="1.5">1,5×</option>
-                  </select>
-                </>
-              )}
-              <span>
-                {clock(time)}{" "}
-                <small className="quiet">
-                  · {saved ? "salvo" : "salvando…"}
-                </small>
+                  }}
+                >
+                  <Repeat2 size={16} /> Repetir trecho
+                </button>
+                {lesson.source.video_id && (
+                  <>
+                    <button
+                      className={loop ? "selected" : ""}
+                      disabled={selected?.end_ms == null}
+                      aria-pressed={loop}
+                      onClick={() => setLoop(!loop)}
+                    >
+                      A–B
+                    </button>
+                    <select
+                      aria-label="Velocidade de reprodução"
+                      onChange={(e) =>
+                        playerRef.current?.setPlaybackRate(
+                          Number(e.target.value),
+                        )
+                      }
+                      defaultValue="1"
+                    >
+                      <option value="0.5">0,5×</option>
+                      <option value="0.75">0,75×</option>
+                      <option value="1">1×</option>
+                      <option value="1.25">1,25×</option>
+                      <option value="1.5">1,5×</option>
+                    </select>
+                  </>
+                )}
+                <span>
+                  {clock(time)}{" "}
+                  <small className="quiet">
+                    · {saved ? "salvo" : "salvando…"}
+                  </small>
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="study-reading">
+            <div className="transcript-heading">
+              <h2>
+                {lesson.source.kind === "text"
+                  ? "Leia o contexto"
+                  : "Transcrição"}
+              </h2>
+              <span className="small quiet">
+                {lesson.segments.length
+                  ? `${lesson.segments.length} trechos carregados`
+                  : "Sem texto disponível"}
               </span>
             </div>
-          )}
-          <div className="transcript-heading">
-            <h2>
-              {lesson.source.kind === "text"
-                ? "Leia o contexto"
-                : "Transcrição"}
-            </h2>
-            <span className="small quiet">
-              {lesson.segments.length
-                ? `${lesson.segments.length} trechos carregados`
-                : "Sem texto disponível"}
-            </span>
-          </div>
-          {!lesson.segments.length ? (
-            <div className="notice">
-              <p>
-                Este conteúdo ainda não tem transcrição. Você pode colar uma
-                legenda autorizada ou, em vídeos elegíveis, pedir uma
-                transcrição automática.
-              </p>
-              {lesson.source.kind === "youtube" && (
-                <div className="ai-transcription">
-                  <h3>Transcrever o vídeo com Gemini</h3>
-                  {lesson.transcriptionEstimate.amount != null && (
-                    <p>
-                      Reserva máxima estimada:{" "}
-                      <strong>
-                        US$ {lesson.transcriptionEstimate.amount.toFixed(2)}
-                      </strong>
-                      . Saldo disponível no limite do app: US${" "}
-                      {lesson.transcriptionEstimate.remaining?.toFixed(2)}.
+            {!lesson.segments.length ? (
+              <div className="notice">
+                <p>
+                  Este conteúdo ainda não tem transcrição. Você pode colar uma
+                  legenda autorizada ou, em vídeos elegíveis, pedir uma
+                  transcrição automática.
+                </p>
+                {lesson.source.kind === "youtube" && (
+                  <div className="ai-transcription">
+                    <h3>Transcrever o vídeo com Gemini</h3>
+                    {lesson.transcriptionEstimate.amount != null && (
+                      <p>
+                        Reserva máxima estimada:{" "}
+                        <strong>
+                          US$ {lesson.transcriptionEstimate.amount.toFixed(2)}
+                        </strong>
+                        . Saldo disponível no limite do app: US${" "}
+                        {lesson.transcriptionEstimate.remaining?.toFixed(2)}.
+                      </p>
+                    )}
+                    <p className="small quiet">
+                      A URL pública do YouTube será enviada ao Gemini. Os
+                      trechos gerados terão tempos aproximados e ficarão
+                      marcados como não revisados.
                     </p>
-                  )}
-                  <p className="small quiet">
-                    A URL pública do YouTube será enviada ao Gemini. Os trechos
-                    gerados terão tempos aproximados e ficarão marcados como não
-                    revisados.
-                  </p>
-                  <label className="check-label">
-                    <input
-                      type="checkbox"
-                      checked={transcriptionConsent}
-                      disabled={!lesson.transcriptionEstimate.available}
-                      onChange={(e) =>
-                        setTranscriptionConsent(e.target.checked)
-                      }
-                    />
-                    Confirmo este envio e o custo máximo estimado.
-                  </label>
-                  <button
-                    className="secondary"
-                    disabled={
-                      busy ||
-                      !transcriptionConsent ||
-                      !lesson.transcriptionEstimate.available ||
-                      lesson.jobs.some((job) =>
-                        ["queued", "processing"].includes(job.status),
-                      )
-                    }
-                    onClick={() =>
-                      void run(async () => {
-                        await api(`sources/${sourceId}/transcribe`, "POST", {
-                          consent: true,
-                        });
-                        setTranscriptionConsent(false);
-                        await load();
-                      })
-                    }
-                  >
-                    Transcrever com Gemini
-                  </button>
-                  {!lesson.transcriptionEstimate.available && (
-                    <p className="small error-text">
-                      {lesson.transcriptionEstimate.reason}
-                    </p>
-                  )}
-                </div>
-              )}
-              <button
-                className="text-button"
-                aria-expanded={captionOpen}
-                aria-controls="caption-form"
-                onClick={() => setCaptionOpen(!captionOpen)}
-              >
-                Adicionar legenda
-              </button>
-              <Link href="/praticar">Praticar com um cenário independente</Link>
-            </div>
-          ) : (
-            <div className="transcript" aria-label="Trechos do conteúdo">
-              {lesson.segments
-                .slice(page * 30, page * 30 + 30)
-                .map((seg, i) => (
-                  <div
-                    key={seg.id}
-                    className={`segment ${seg.id === selected?.id ? "active" : ""}`}
-                  >
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={transcriptionConsent}
+                        disabled={!lesson.transcriptionEstimate.available}
+                        onChange={(e) =>
+                          setTranscriptionConsent(e.target.checked)
+                        }
+                      />
+                      Confirmo este envio e o custo máximo estimado.
+                    </label>
                     <button
-                      className="segment-select"
-                      onClick={() => {
-                        setSelectedId(seg.id);
-                        context({ segment: seg.id });
-                        if (seg.start_ms != null)
-                          playerRef.current?.seekTo(seg.start_ms / 1000, true);
-                      }}
+                      className="secondary"
+                      disabled={
+                        busy ||
+                        !transcriptionConsent ||
+                        !lesson.transcriptionEstimate.available ||
+                        lesson.jobs.some((job) =>
+                          ["queued", "processing"].includes(job.status),
+                        )
+                      }
+                      onClick={() =>
+                        void run(async () => {
+                          await api(`sources/${sourceId}/transcribe`, "POST", {
+                            consent: true,
+                          });
+                          setTranscriptionConsent(false);
+                          await load();
+                        })
+                      }
                     >
-                      <span className="segment-time">
-                        {seg.start_ms == null
-                          ? String(page * 30 + i + 1).padStart(2, "0")
-                          : clock(seg.start_ms)}
-                      </span>
-                      <span lang="en">{seg.text}</span>
+                      Transcrever com Gemini
                     </button>
-                    {seg.id === selected?.id && (
-                      <div className="segment-translation">
-                        <button
-                          className="text-button"
-                          onClick={() => void revealTranslation()}
-                        >
-                          {reveal ? "Ocultar tradução" : "Tradução: revelar"}
-                          <ChevronRight size={13} />
-                        </button>
-                        {reveal && <p>{seg.translation}</p>}
-                        {seg.time_accuracy === "approximate" && (
-                          <small className="quiet">
-                            {seg.origin === "provider_video_url"
-                              ? "Transcrição automática não revisada · tempo aproximado"
-                              : "Tempo aproximado · legenda fornecida"}
-                          </small>
-                        )}
-                      </div>
+                    {!lesson.transcriptionEstimate.available && (
+                      <p className="small error-text">
+                        {lesson.transcriptionEstimate.reason}
+                      </p>
                     )}
                   </div>
-                ))}
-            </div>
-          )}
-          {lesson.segments.length > 30 && (
-            <div className="pagination">
-              <button disabled={page === 0} onClick={() => setPage(page - 1)}>
-                <ChevronLeft size={16} />
-                Anterior
-              </button>
-              <span>
-                {page + 1} / {Math.ceil(lesson.segments.length / 30)}
-              </span>
-              <button
-                disabled={(page + 1) * 30 >= lesson.segments.length}
-                onClick={() => setPage(page + 1)}
-              >
-                Próximos
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
-          {lesson.segments.length >= 100 && (
-            <button
-              className="text-button"
-              onClick={() =>
-                void run(async () => {
-                  const extra = await api<Segment[]>(
-                    `sources/${sourceId}/segments?cursor=${lesson.segments.length}`,
-                  );
-                  setLesson({
-                    ...lesson,
-                    segments: [...lesson.segments, ...extra],
-                  });
-                })
-              }
-            >
-              Carregar próximos trechos
-            </button>
-          )}
-          {captionOpen && (
-            <form
-              id="caption-form"
-              className="caption-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run(async () => {
-                  await api(`sources/${sourceId}/segments`, "POST", {
-                    text: caption,
-                    rights: captionRights,
-                  });
-                  setCaption("");
-                  setCaptionOpen(false);
-                  await load();
-                });
-              }}
-            >
-              <label>
-                SRT ou VTT autorizado
-                <textarea
-                  required
-                  rows={5}
-                  value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
-                />
-              </label>
-              <label>
-                Direito de uso da legenda
-                <select
-                  value={captionRights}
-                  onChange={(e) =>
-                    setCaptionRights(e.target.value as "owned" | "licensed")
-                  }
+                )}
+                <button
+                  className="text-button"
+                  aria-expanded={captionOpen}
+                  aria-controls="caption-form"
+                  onClick={() => setCaptionOpen(!captionOpen)}
                 >
-                  <option value="licensed">Tenho autorização ou licença</option>
-                  <option value="owned">Sou o autor da legenda</option>
-                </select>
-              </label>
-              <label className="check-label">
-                <input type="checkbox" required />
-                Confirmo autoria ou autorização para usar a legenda.
-              </label>
-              <button className="secondary" disabled={busy || !caption.trim()}>
-                Salvar legenda
+                  Adicionar legenda
+                </button>
+                <Link href="/praticar">
+                  Praticar com um cenário independente
+                </Link>
+              </div>
+            ) : (
+              <div className="transcript" aria-label="Trechos do conteúdo">
+                {lesson.segments
+                  .slice(page * 30, page * 30 + 30)
+                  .map((seg, i) => (
+                    <div
+                      key={seg.id}
+                      className={`segment ${seg.id === selected?.id ? "active" : ""}`}
+                    >
+                      <button
+                        className="segment-select"
+                        onClick={() => {
+                          setSelectedId(seg.id);
+                          context({ segment: seg.id });
+                          if (seg.start_ms != null)
+                            playerRef.current?.seekTo(
+                              seg.start_ms / 1000,
+                              true,
+                            );
+                        }}
+                      >
+                        <span className="segment-time">
+                          {seg.start_ms == null
+                            ? String(page * 30 + i + 1).padStart(2, "0")
+                            : clock(seg.start_ms)}
+                        </span>
+                        <span lang="en">{seg.text}</span>
+                      </button>
+                      {seg.id === selected?.id && (
+                        <div className="segment-support">
+                          <button
+                            className="text-button support-toggle"
+                            aria-expanded={reveal}
+                            onClick={() => void revealTranslation()}
+                          >
+                            {reveal ? "Ocultar apoio" : "Entender este trecho"}
+                            <ChevronRight size={13} />
+                          </button>
+                          {reveal && (
+                            <SegmentSupport
+                              support={seg.support}
+                              legacyText={seg.translation}
+                              loading={busy}
+                              aiReady={data.integrations.ai}
+                            />
+                          )}
+                          {seg.time_accuracy === "approximate" && (
+                            <small className="quiet">
+                              {seg.origin === "provider_video_url"
+                                ? "Transcrição automática não revisada · tempo aproximado"
+                                : "Tempo aproximado · legenda fornecida"}
+                            </small>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+            {lesson.segments.length > 30 && (
+              <div className="pagination">
+                <button disabled={page === 0} onClick={() => setPage(page - 1)}>
+                  <ChevronLeft size={16} />
+                  Anterior
+                </button>
+                <span>
+                  {page + 1} / {Math.ceil(lesson.segments.length / 30)}
+                </span>
+                <button
+                  disabled={(page + 1) * 30 >= lesson.segments.length}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Próximos
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+            {lesson.segments.length >= 100 && (
+              <button
+                className="text-button"
+                onClick={() =>
+                  void run(async () => {
+                    const extra = await api<Segment[]>(
+                      `sources/${sourceId}/segments?cursor=${lesson.segments.length}`,
+                    );
+                    setLesson({
+                      ...lesson,
+                      segments: [...lesson.segments, ...extra],
+                    });
+                  })
+                }
+              >
+                Carregar próximos trechos
               </button>
-            </form>
-          )}
-          <div className="study-bottom">
-            <span className="small quiet">
-              {lesson.source.is_example
-                ? "Texto autoral de demonstração, sem vídeo associado."
-                : "A origem acompanha cada expressão que você salvar."}
-              {data.profile.shortcutsEnabled
-                ? " · R: repetir · T: tradução"
-                : ""}
-            </span>
-            <Link href="/praticar">
-              Praticar falando <ArrowRight size={16} />
-            </Link>
+            )}
+            {captionOpen && (
+              <form
+                id="caption-form"
+                className="caption-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void run(async () => {
+                    await api(`sources/${sourceId}/segments`, "POST", {
+                      text: caption,
+                      rights: captionRights,
+                    });
+                    setCaption("");
+                    setCaptionOpen(false);
+                    await load();
+                  });
+                }}
+              >
+                <label>
+                  SRT ou VTT autorizado
+                  <textarea
+                    required
+                    rows={5}
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Direito de uso da legenda
+                  <select
+                    value={captionRights}
+                    onChange={(e) =>
+                      setCaptionRights(e.target.value as "owned" | "licensed")
+                    }
+                  >
+                    <option value="licensed">
+                      Tenho autorização ou licença
+                    </option>
+                    <option value="owned">Sou o autor da legenda</option>
+                  </select>
+                </label>
+                <label className="check-label">
+                  <input type="checkbox" required />
+                  Confirmo autoria ou autorização para usar a legenda.
+                </label>
+                <button
+                  className="secondary"
+                  disabled={busy || !caption.trim()}
+                >
+                  Salvar legenda
+                </button>
+              </form>
+            )}
+            <div className="study-bottom">
+              <span className="small quiet">
+                {lesson.source.is_example
+                  ? "Texto autoral de demonstração, sem vídeo associado."
+                  : "A origem acompanha cada expressão que você salvar."}
+                {data.profile.shortcutsEnabled
+                  ? " · R: repetir · T: apoio"
+                  : ""}
+              </span>
+              <Link href="/praticar">
+                Praticar falando <ArrowRight size={16} />
+              </Link>
+            </div>
           </div>
         </section>
         <aside className="study-panel">

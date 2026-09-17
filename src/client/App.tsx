@@ -22,6 +22,8 @@ import {
   X,
   Check,
   LoaderCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { api, HttpError, money } from "./http";
 import type { Bootstrap } from "./types";
@@ -56,6 +58,10 @@ export function App() {
     [fatal, setFatal] = useState(""),
     [busy, setBusy] = useState(false),
     [menu, setMenu] = useState(false),
+    // Preferência de viewport por dispositivo: um notebook estreito pede a
+    // barra recolhida, um monitor grande não. Fica no localStorage em vez de
+    // no perfil para não sincronizar entre telas de tamanhos diferentes.
+    [rail, setRail] = useState(false),
     [online, setOnline] = useState(true);
   const path = usePathname(),
     router = useRouter();
@@ -102,6 +108,24 @@ export function App() {
   useEffect(() => {
     setMenu(false);
   }, [path]);
+  // Lido depois da montagem: ler no initializer divergiria do HTML do servidor.
+  useEffect(() => {
+    try {
+      setRail(localStorage.getItem("fq-rail") === "1");
+    } catch {
+      // Navegador sem armazenamento: a barra fica expandida, que é o padrão.
+    }
+  }, []);
+  const toggleRail = useCallback(() => {
+    setRail((value) => {
+      try {
+        localStorage.setItem("fq-rail", value ? "0" : "1");
+      } catch {
+        // Preferência não persiste, mas a sessão atual respeita a escolha.
+      }
+      return !value;
+    });
+  }, []);
   useEffect(() => {
     if (!message) return;
     const t = setTimeout(() => setMessage(""), 6500);
@@ -147,7 +171,7 @@ export function App() {
       <a className="skip" href="#main">
         Pular para o conteúdo
       </a>
-      <div className="app-shell">
+      <div className={`app-shell ${rail ? "rail" : ""}`}>
         <header className="mobile-head">
           <Link href="/" className="wordmark">
             FluentQuest<span>.</span>
@@ -213,6 +237,19 @@ export function App() {
               </span>
               <Settings size={17} />
             </Link>
+            <button
+              className="text-button rail-toggle"
+              onClick={toggleRail}
+              aria-pressed={rail}
+              title={rail ? "Expandir a barra" : "Recolher a barra"}
+            >
+              {rail ? (
+                <PanelLeftOpen size={17} />
+              ) : (
+                <PanelLeftClose size={17} />
+              )}
+              <span>{rail ? "Expandir" : "Recolher"}</span>
+            </button>
           </div>
         </aside>
         <main id="main" className={`main ${isStudy ? "study-main" : ""}`}>

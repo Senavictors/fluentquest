@@ -24,10 +24,18 @@ export interface TranscriptionEstimate {
   durationLimitMs: number;
   reason: string | null;
 }
+export interface SegmentSupport {
+  translation: string;
+  point: string;
+  example: string;
+  question: string;
+}
 export interface Segment {
   id: string;
   ordinal: number;
   text: string;
+  support: SegmentSupport | null;
+  // Apoio anterior à migração 005: texto corrido, sem os quatro campos.
   translation: string | null;
   start_ms: number | null;
   end_ms: number | null;

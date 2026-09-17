@@ -298,12 +298,18 @@ describe("Transcrição de vídeo por URL sem tráfego externo", () => {
           expect.objectContaining({
             type: "video",
             uri: "https://www.youtube.com/watch?v=abcdefghijk",
-            processing: "agentic",
           }),
         ]),
       }),
       { maxRetries: 0 },
     );
+    // gemini-3.5-flash-lite falha sob processamento agêntico (400 "invalid JSON
+    // syntax" / 500 "high demand"); o padrão estático transcreve o mesmo vídeo.
+    expect(
+      mocks.create.mock.calls[0][0].input.find(
+        (block: { type: string }) => block.type === "video",
+      ),
+    ).not.toHaveProperty("processing");
     const request = mocks.create.mock.calls[0][0];
     const serializedSchema = JSON.stringify(request.response_format.schema);
     for (const unsupportedKeyword of [
@@ -311,6 +317,8 @@ describe("Transcrição de vídeo por URL sem tráfego externo", () => {
       "exclusiveMinimum",
       "minLength",
       "maxLength",
+      "minItems",
+      "maxItems",
     ])
       expect(serializedSchema).not.toContain(`"${unsupportedKeyword}"`);
   });
@@ -356,6 +364,11 @@ describe("Transcrição de vídeo por URL sem tráfego externo", () => {
     expect(mocks.create.mock.calls[0][0].generation_config).not.toHaveProperty(
       "thinking_level",
     );
+    expect(
+      mocks.create.mock.calls[0][0].input.find(
+        (block: { type: string }) => block.type === "video",
+      ),
+    ).toMatchObject({ processing: "agentic" });
     expect(mocks.settle).toHaveBeenCalledWith(
       "reservation-fixture",
       expect.objectContaining({ model: "gemini-3.8-flash", micros: 150 }),

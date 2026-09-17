@@ -54,15 +54,20 @@ await page.screenshot({
   path: new URL("study-desktop.png", dir).pathname.replace(/^\/([A-Z]:)/, "$1"),
   fullPage: true,
 });
+// Selecione o trecho explicitamente: o trecho ativo vem do contexto salvo da
+// sessão, que muda conforme o proprietário usa o app, e sem isto a asserção
+// abaixo passa a valer para outro trecho.
 await page
-  .getByRole("button", { name: "Tradução: revelar", exact: true })
+  .getByRole("button", { name: /The test passes locally every single time/ })
   .click();
-if (
-  !(await page
-    .getByText("O teste passa localmente todas as vezes.", { exact: true })
-    .isVisible())
-)
-  throw new Error("Translation reveal failed");
+await page
+  .getByRole("button", { name: "Entender este trecho", exact: true })
+  .click();
+// O apoio entra após o commit do React, então aguarde-o em vez de checar a
+// visibilidade no mesmo tick do clique.
+await page
+  .getByText("O teste passa localmente todas as vezes.", { exact: true })
+  .waitFor({ timeout: 10000 });
 await page.getByRole("tab", { name: "Tutor", exact: true }).click();
 await page
   .getByText("Integração não configurada.", { exact: false })

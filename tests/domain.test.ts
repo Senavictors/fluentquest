@@ -5,6 +5,7 @@ import {
   normalize,
   validateVideoTranscriptionDuration,
   videoTranscript,
+  fitTranscriptToDuration,
 } from "../src/domain/content";
 import { initialCard, scheduleCard, xpLevel } from "../src/domain/review";
 import { tokenCostMicros, budgetPeriod } from "../src/server/budget";
@@ -119,5 +120,46 @@ describe("Orçamento", () => {
   });
   it("não trata medição ausente como chamada gratuita", () => {
     expect(() => normalizeUsage({ total_input_tokens: 10 })).toThrow();
+  });
+});
+
+describe("Ajuste de tempo da transcrição de vídeo", () => {
+  it("não mexe em trechos que já cabem na duração", () => {
+    const segments = [
+      { startMs: 0, endMs: 10000 },
+      { startMs: 10000, endMs: 60000 },
+    ];
+    expect(fitTranscriptToDuration(segments, 60000)).toEqual(segments);
+  });
+
+  it("reescala proporcionalmente o drift do provedor e preserva a ordem", () => {
+    // Caso real medido em 2026-09-16: vídeo de 837 s devolvido com o trecho
+    // final em 936 s, sendo esse trecho o encerramento real do vídeo.
+    const segments = [
+      { startMs: 1099, endMs: 13999 },
+      { startMs: 13999, endMs: 23999 },
+      { startMs: 923999, endMs: 935999 },
+    ];
+    const fitted = fitTranscriptToDuration(segments, 837000);
+    expect(fitted[fitted.length - 1].endMs).toBe(837000);
+    expect(fitted.every((s) => s.endMs > s.startMs)).toBe(true);
+    for (let i = 1; i < fitted.length; i++)
+      expect(fitted[i].startMs).toBeGreaterThanOrEqual(fitted[i - 1].startMs);
+  });
+
+  it("preserva campos que não são de tempo", () => {
+    const fitted = fitTranscriptToDuration(
+      [{ startMs: 0, endMs: 120000, text: "hello" }],
+      100000,
+    );
+    expect(fitted[0].text).toBe("hello");
+    expect(fitted[0].endMs).toBe(100000);
+  });
+
+  it("recusa tempos que não são drift, mas erro de unidade", () => {
+    // Segundos no lugar de milissegundos: 837 s viram 837000 s.
+    expect(() =>
+      fitTranscriptToDuration([{ startMs: 0, endMs: 837000000 }], 837000),
+    ).toThrow();
   });
 });
