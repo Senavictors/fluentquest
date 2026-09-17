@@ -28,6 +28,8 @@ A sala de estudo ganhou um **modo cinema** (TASK-010), a pedido do proprietário
 
 O **modo imersão foi removido** na mesma passagem, a pedido do proprietário: mudava só a largura do painel (350→310px) e o corpo do trecho (15→19px), sem rótulo que explicasse isso, e o botão no cabeçalho era indistinguível de um "expandir". O lugar dele passou a ser o controle do cinema. O campo `immersion` continua aceito em `PATCH /api/sessions/:id` por compatibilidade com sessões já gravadas, mas o cliente não escreve nem lê mais.
 
+Ainda em 17/09, **ADR-004 / TASK-011** deu proveniência própria à legenda de vídeo público. `POST /api/sources/:id/segments` aceitava só `owned` e `licensed`, sobrescrevia os direitos da fonte e carimbava `origin='user_upload'` — anexar a legenda automática de um vídeo de terceiros exigia três afirmações falsas nos campos que existem para registrar a origem. Agora `rights` aceita `public_link` quando a fonte já é link público (senão `RIGHTS_MISMATCH`), os direitos não mudam, e os trechos entram como `origin='public_caption'` com `quality_status='ai_unreviewed'`, rotulados na tela como legenda automática não revisada. O servidor continua sem buscar, baixar ou raspar nada: ele recebe um texto que o proprietário fornece.
+
 ## Arquitetura vigente
 
 Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`content.ts`, `review.ts`) sem conhecer HTTP ou banco; servidor em `src/server/` sobre PostgreSQL 18 + Drizzle; fila `pg-boss` no worker `src/worker.ts`; Better Auth com origem restrita a `BETTER_AUTH_URL`; agendamento por `ts-fsrs`. Detalhe em `docs/architecture/` e nos papéis em `.claude/agents/`.
