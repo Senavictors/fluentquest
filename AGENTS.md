@@ -68,6 +68,7 @@ npm run typecheck        # tsc --noEmit
 npm test                 # Vitest — APENAS 11 testes de domínio, não cobre o servidor
 npm run test:integration # 23 cenários com banco temporário; exige .env.setup e PostgreSQL
 npm run db:migrate       # aplica migrations/ transacionalmente
+npm run budget:reconcile # relata reservas ambíguas; só altera estado com --liberar "motivo"
 node scripts/browser-qa.mjs         # QA de navegador (sem script npm)
 node scripts/accessibility-qa.mjs   # axe nas telas (sem script npm)
 ```

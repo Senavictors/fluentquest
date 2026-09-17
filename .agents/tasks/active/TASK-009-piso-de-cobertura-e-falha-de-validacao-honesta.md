@@ -186,7 +186,7 @@ Os dois testes escritos na passagem anterior para documentar o comportamento ant
 ### Pendências abertas por este complemento
 
 - **Reescalonamento de drift grande não tem ground truth.** Com 1,56× de desvio, o alinhamento no meio do vídeo é hipótese linear, não medição. Os trechos continuam `approximate` e `ai_unreviewed`; se o destaque durante a reprodução ficar visivelmente fora, o caminho honesto é degradar a precisão declarada, não apertar o teto de novo.
-- **Saldo travado:** 10 reservas em estado `unknown` somam 589.697 micros (US$ 0,59) do teto de US$ 1,00, sobra de chamadas ambíguas de 15 e 16/09. O consumo real do mês é US$ 0,19, mas o disponível caiu para US$ 0,22. Precisa de conciliação — assunto separado desta task.
+- ~~**Saldo travado:** 10 reservas em estado `unknown` somam 589.697 micros (US$ 0,59) do teto de US$ 1,00.~~ **Resolvido em 2026-09-17 por ADR-003**: estado `reconciled`, migração 006 e `npm run budget:reconcile`. As dez foram conciliadas com base no nível gratuito sem faturamento; disponível voltou de US$ 0,22 para US$ 0,78, com uso real medido de US$ 0,2190.
 
 ## Handoff
 

@@ -1,7 +1,7 @@
 ---
 estado: real
-fonte: package.json, scripts/backup.ts, scripts/restore.ts, src/worker.ts
-ultima-revisao: 2026-09-15 (TASK-008; metadados documentais)
+fonte: package.json, scripts/backup.ts, scripts/restore.ts, scripts/reconcile.ts, src/worker.ts
+ultima-revisao: 2026-09-17 (ADR-003; conciliação de reserva ambígua)
 ---
 
 # Operação local
@@ -36,7 +36,7 @@ Excluir a conta cancela jobs e revoga sessões imediatamente. Um tombstone imped
 - Sem transcrição: reproduzir a fonte ou usar um cenário independente; adicionar SRT/VTT autorizado.
 - Sem PostgreSQL: a interface mostra erro e opção de tentar novamente; nenhum estado é anunciado como salvo.
 - Job interrompido: após dez minutos sem atualização, fica em revisão. Inferência externa não é repetida cegamente.
-- Custo desconhecido: reserva permanece em estado `unknown` até conciliação administrativa. Verifique o fornecedor antes de liberar saldo.
+- Custo desconhecido: reserva permanece em estado `unknown` até conciliação administrativa. Verifique o fornecedor antes de liberar saldo. `npm run budget:reconcile` lista as pendentes; com `--liberar "motivo"` move para `reconciled` e registra data e justificativa. Recusa conciliar reserva que já tenha uso medido ou que tenha menos de dez minutos.
 - 429 ou indisponibilidade: tente depois. Três resultados ambíguos recentes suspendem novas inferências por dez minutos.
 - Permissão de microfone negada: habilite no navegador ou envie resposta escrita. Microfone fecha ao parar ou sair da tela.
 

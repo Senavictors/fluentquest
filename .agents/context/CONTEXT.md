@@ -22,6 +22,8 @@ Ainda em 16/09, a sala de estudo passou de documento rolável a área de trabalh
 
 Em 17/09 a conferência de uma transcrição real expôs dois defeitos e abriu TASK-009. O vídeo `Xli-93vkN-s` (837 s) voltou com **5 trechos cobrindo 111 s (13%)** e mesmo assim virou fonte `text_ready`: nada verificava cobertura — `videoTranscript` aceita um trecho e `fitTranscriptToDuration` só recusa tempo acima da duração. Na tentativa anterior, do mesmo minuto, o Gemini respondeu com 4.404 tokens de saída, `settleBudget` conciliou e só então o `schema.parse` falhou; como `ZodError` não é `AppError`, virou `PROVIDER_UNAVAILABLE` — uma transcrição inteira paga, descartada sem registro e diagnosticada como indisponibilidade do provedor. Agora existem `assertTranscriptCoverage()` (piso de 80%, erro `INCOMPLETE_TRANSCRIPT`) e `parseProviderOutput()` (erro `INVALID_PROVIDER_OUTPUT`, texto bruto em `AI_INVALID_OUTPUT`), e transcrição de vídeo deixou de usar `result_cache`, senão a resposta recusada ficaria presa na chave e a nova tentativa nunca chamaria o provedor.
 
+Ainda em 17/09, as reservas ambíguas foram destravadas. `unknown` era um estado terminal — `failBudget` colocava a reserva lá e nada no código a tirava —, e `usage()` soma `active` + `unknown` contra o teto. Dez reservas de 15 a 17/09 somavam US$ 0,5897 de um teto de US$ 1,00, contra consumo real medido de US$ 0,2190: o orçamento tinha parado de proteger e passado a travar. ADR-003 criou o estado `reconciled`, a migração 006 (`reconciled_at`, `reconciliation_note`) e o comando `npm run budget:reconcile`, que relata por padrão e só altera estado com `--liberar "motivo"`, recusando reserva com uso medido ou com menos de dez minutos. As dez foram conciliadas com base no nível gratuito sem faturamento; o disponível voltou para US$ 0,78.
+
 ## Arquitetura vigente
 
 Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`content.ts`, `review.ts`) sem conhecer HTTP ou banco; servidor em `src/server/` sobre PostgreSQL 18 + Drizzle; fila `pg-boss` no worker `src/worker.ts`; Better Auth com origem restrita a `BETTER_AUTH_URL`; agendamento por `ts-fsrs`. Detalhe em `docs/architecture/` e nos papéis em `.claude/agents/`.
@@ -43,6 +45,8 @@ Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`
 - **Mobile só emulado**: microfone e codecs verificados em 390×844 por emulação; nunca em aparelho físico.
 
 ## Decisões recentes
+
+**ADR-003** (2026-09-17, `accepted`) — conciliação de reserva ambígua é ato explícito do proprietário, com estado `reconciled` próprio, anotação no livro-razão e comando dedicado. Nada expira por tempo: liberar valor ambíguo sem alguém ter olhado contradiria a Constituição.
 
 **ADR-001** (2026-09-14, `accepted`) — ativação da camada de IA em três fases, com Gemini no tier gratuito e OpenAI como provedor de texto alternativo. Decidiu também habilitar transcrição de vídeo por URL (o provedor processa; o servidor não baixa mídia) e generalizar a abstração de preço. O limite operacional vigente do piloto é US$ 1/mês. No tier gratuito Gemini **não há fatura**, então o teto vira freio de uso; em OpenAI, a conciliação externa ainda precisa ser feita no painel. Índice em `.agents/decisions/README.md`. As decisões de produto anteriores ao bootstrap estão em `PRODUCT.md` e `docs/INTEGRACOES.md`.
 

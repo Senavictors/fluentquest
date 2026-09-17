@@ -13,6 +13,7 @@
     "setup": "tsx scripts/setup.ts",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "owner:create": "tsx --env-file=.env.local scripts/owner.ts",
+    "budget:reconcile": "tsx --env-file=.env.local scripts/reconcile.ts",
     "backup": "tsx --env-file=.env.local scripts/backup.ts",
     "restore": "tsx --env-file=.env.local scripts/restore.ts",
     "test": "vitest run",
