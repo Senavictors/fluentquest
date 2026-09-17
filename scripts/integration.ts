@@ -104,6 +104,49 @@ try {
     "INTEGRATION_NOT_CONFIGURED",
   );
   ok("IA desligada sem resposta simulada");
+  const fixtureKey = "AIzaSyFIXTUREDEINTEGRACAO7788";
+  const saved = await request("integrations/youtube", "PUT", {
+    key: fixtureKey,
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.data.youtube, true);
+  assert.equal(saved.data.keys.youtube.origin, "interface");
+  assert.equal(saved.data.keys.youtube.hint, "••••7788");
+  // A chave não pode voltar por nenhum caminho: nem na resposta da rota, nem no
+  // bootstrap, nem em claro no banco que entra no backup.
+  assert.ok(!JSON.stringify(saved.data).includes(fixtureKey));
+  assert.ok(
+    !JSON.stringify((await request("bootstrap")).data).includes(fixtureKey),
+  );
+  const stored = await query(
+    "SELECT ciphertext,hint FROM integration_credentials WHERE user_id=$1 AND provider='youtube'",
+    [u.user.id],
+  );
+  assert.equal(stored.length, 1);
+  assert.ok(!stored[0].ciphertext.includes(fixtureKey));
+  assert.equal(
+    (await request("integrations/youtube", "PUT", { key: "chave com espaço" }))
+      .data.code,
+    "INVALID_INPUT",
+  );
+  assert.equal(
+    (await request("integrations/anthropic", "PUT", { key: fixtureKey })).data
+      .code,
+    "INVALID_INPUT",
+  );
+  const removed = await request("integrations/youtube", "DELETE", {});
+  assert.equal(removed.data.youtube, false);
+  assert.equal(removed.data.keys.youtube.configured, false);
+  assert.equal(
+    (
+      await query(
+        "SELECT count(*)::int AS n FROM integration_credentials WHERE user_id=$1",
+        [u.user.id],
+      )
+    )[0].n,
+    0,
+  );
+  ok("Chave cadastrada pela interface fica cifrada e não volta pela API");
   const videoInput = {
     kind: "youtube",
     title: "Fixture",
@@ -208,7 +251,9 @@ try {
     assert.equal(transcribed.segments[0].origin, "provider_video_url");
     assert.equal(transcribed.segments[0].time_accuracy, "approximate");
     assert.equal(transcribed.segments[0].quality_status, "ai_unreviewed");
-    ok("Transcrição por URL exige consentimento e persiste proveniência atômica");
+    ok(
+      "Transcrição por URL exige consentimento e persiste proveniência atômica",
+    );
 
     const failingVideo = await request("sources", "POST", {
       ...videoInput,
@@ -250,11 +295,9 @@ try {
     await prepare(longVideo.data.jobId);
     assert.equal(
       (
-        await request(
-          `sources/${longVideo.data.sourceId}/transcribe`,
-          "POST",
-          { consent: true },
-        )
+        await request(`sources/${longVideo.data.sourceId}/transcribe`, "POST", {
+          consent: true,
+        })
       ).data.code,
       "VIDEO_TOO_LONG",
     );

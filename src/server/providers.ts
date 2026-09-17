@@ -21,6 +21,7 @@ import {
   videoTranscriptionEstimateMicros,
 } from "./budget";
 import { query } from "./db";
+import { credential, credentialStates } from "./credentials";
 export type TextProviderName = "gemini" | "openai";
 type JsonSchema = Record<string, unknown>;
 // Agentic video processing drives an internal tool loop. gemini-3.5-flash-lite
@@ -121,9 +122,7 @@ function providerConfig(name: TextProviderName): ProviderConfig {
   const priceReviewedOn = gemini
     ? process.env.AI_PRICES_REVIEWED_ON || ""
     : process.env.OPENAI_PRICES_REVIEWED_ON || "";
-  const apiKey = gemini
-    ? process.env.GEMINI_API_KEY
-    : process.env.OPENAI_API_KEY;
+  const apiKey = credential(gemini ? "gemini" : "openai");
   const model = gemini
     ? process.env.GEMINI_MODEL || "gemini-3.5-flash-lite"
     : process.env.OPENAI_MODEL || "gpt-4o-mini";
@@ -144,6 +143,18 @@ function providerConfig(name: TextProviderName): ProviderConfig {
 export function selectedTextProvider(): TextProviderName {
   return process.env.AI_TEXT_PROVIDER === "openai" ? "openai" : "gemini";
 }
+// "Não configurado" é verdadeiro mas inútil quando há três requisitos
+// independentes — chave, preço revisado e `AI_ENABLED` — e a tela não diz qual
+// está faltando. Cadastrar a chave pela interface resolve um deles; os outros
+// dois continuam sendo ato deliberado do proprietário no ambiente, então
+// precisam aparecer nomeados.
+const providerDetail = (config: ProviderConfig) => ({
+  ready: config.ready,
+  key: !!config.apiKey,
+  prices: !!reviewedPrices(config.priceReviewedOn, config.input, config.output),
+  model: config.model,
+  priceReviewedOn: config.priceReviewedOn,
+});
 export const integrationStatus = () => {
   const selected = providerConfig(selectedTextProvider());
   const gemini = providerConfig("gemini");
@@ -154,8 +165,11 @@ export const integrationStatus = () => {
     model: selected.model,
     gemini: gemini.ready,
     openai: openai.ready,
-    youtube: !!process.env.YOUTUBE_API_KEY,
+    youtube: !!credential("youtube"),
     videoModel: process.env.GEMINI_VIDEO_MODEL || gemini.model,
+    enabled: process.env.AI_ENABLED === "true",
+    keys: credentialStates(),
+    detail: { gemini: providerDetail(gemini), openai: providerDetail(openai) },
     message:
       "Integração não configurada. Seu material, gravações e revisões continuam disponíveis.",
   };
@@ -914,7 +928,7 @@ export const youtube: VideoMetadataProvider = {
     url.search = new URLSearchParams({
       part: "snippet,contentDetails,status",
       id: videoId,
-      key: process.env.YOUTUBE_API_KEY!,
+      key: credential("youtube")!,
     }).toString();
     const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!response.ok)

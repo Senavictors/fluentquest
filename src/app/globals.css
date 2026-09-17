@@ -2226,13 +2226,38 @@ td:last-child {
   white-space: nowrap;
 }
 .integration-list > div {
+  padding: 0 0 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.integration-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 0 0 20px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--line);
+}
+.integration-pending {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.key-form {
+  margin-top: 12px;
+}
+.key-form label {
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.key-form input {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+.key-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
 }
 .integration-list strong {
   font-size: 18px;
@@ -3208,7 +3233,7 @@ code {
   .budget-form label {
     font-size: 12px;
   }
-  .integration-list > div {
+  .integration-head {
     gap: 12px;
   }
   .integration-list small {

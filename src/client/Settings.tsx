@@ -145,6 +145,135 @@ export function Journey() {
     </div>
   );
 }
+// As três chaves que o produto usa. `env` aparece na tela porque continuar
+// aceitando `.env.local` é parte do contrato: quem já tem uma instalação
+// funcionando não precisa recadastrar nada, e precisa conseguir ver de onde a
+// chave em uso está vindo.
+const integrationProviders = [
+  {
+    id: "gemini" as const,
+    label: "Gemini",
+    role: "Transcrição de vídeo por URL, feedback de fala e texto, quando selecionado.",
+    env: "GEMINI_API_KEY",
+    where: "Google AI Studio",
+    url: "https://aistudio.google.com/apikey",
+  },
+  {
+    id: "openai" as const,
+    label: "OpenAI",
+    role: "Tutor, atividades e apoio de trecho, quando selecionado como provedor de texto.",
+    env: "OPENAI_API_KEY",
+    where: "Painel da OpenAI",
+    url: "https://platform.openai.com/api-keys",
+  },
+  {
+    id: "youtube" as const,
+    label: "YouTube Data API",
+    role: "Título, autor e duração oficiais do vídeo. O player em iframe funciona sem chave.",
+    env: "YOUTUBE_API_KEY",
+    where: "Google Cloud Console",
+    url: "https://console.cloud.google.com/apis/credentials",
+  },
+];
+function IntegrationRow({
+  provider,
+}: {
+  provider: (typeof integrationProviders)[number];
+}) {
+  const { data, run, refresh, notify, busy } = useApp();
+  const [value, setValue] = useState("");
+  const state = data.integrations.keys[provider.id];
+  const detail =
+    provider.id === "youtube" ? null : data.integrations.detail[provider.id];
+  // Chave presente não é integração pronta: o provedor de texto ainda depende
+  // de preço revisado e de AI_ENABLED. Dizer só "não configurado" esconderia
+  // qual dos três requisitos falta.
+  const pending = [
+    !state.configured && "cadastre a chave abaixo",
+    detail && !detail.prices && "revise o preço do provedor no ambiente",
+    detail && !data.integrations.enabled && "AI_ENABLED ainda está desligado",
+  ].filter(Boolean) as string[];
+  const ready = detail ? detail.ready : state.configured;
+  return (
+    <div>
+      <div className="integration-head">
+        <span>
+          <strong>{provider.label}</strong>
+          <small>{provider.role}</small>
+        </span>
+        <span className={`status ${ready ? "good" : ""}`}>
+          {ready ? "Em uso" : state.configured ? "Chave salva" : "Sem chave"}
+        </span>
+      </div>
+      <p className="integration-pending">
+        {state.configured
+          ? `Chave ${state.hint} · ${state.origin === "interface" ? "cadastrada aqui" : `lida de ${provider.env}`}`
+          : `Nenhuma chave. Também é possível definir ${provider.env} no ambiente.`}
+        {pending.length ? ` · Falta: ${pending.join("; ")}.` : ""}
+      </p>
+      <form
+        className="key-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void run(async () => {
+            await api(`integrations/${provider.id}`, "PUT", {
+              key: value.trim(),
+            });
+            setValue("");
+            await refresh();
+            notify(`Chave salva: ${provider.label}.`);
+          });
+        }}
+      >
+        <label>
+          {state.configured
+            ? `Substituir a chave · ${provider.label}`
+            : `Chave de API · ${provider.label}`}
+          <input
+            type="password"
+            value={value}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={state.configured ? state.hint! : "Cole a chave aqui"}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        </label>
+        <div className="key-actions">
+          <button
+            className="secondary"
+            disabled={busy || value.trim().length < 16}
+          >
+            Salvar chave <Check size={15} />
+          </button>
+          <a
+            className="text-link"
+            href={provider.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {provider.where} <ExternalLink size={14} />
+          </a>
+          {state.origin === "interface" && (
+            <button
+              type="button"
+              className="text-button danger-text"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await api(`integrations/${provider.id}`, "DELETE");
+                  await refresh();
+                  notify(`Chave removida: ${provider.label}.`);
+                })
+              }
+            >
+              Remover chave salva
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+}
 export function Preferences() {
   const { data, run, refresh, notify, busy } = useApp(),
     router = useRouter();
@@ -332,58 +461,32 @@ export function Preferences() {
         <div>
           <h2>Integrações</h2>
           <p className="quiet">
-            As chaves ficam apenas na configuração local do servidor.
+            Cadastre aqui as chaves de API. Elas ficam cifradas no seu banco
+            local, nunca voltam pela interface e valem para o servidor e para o
+            worker sem reiniciar nada.
           </p>
         </div>
         <div className="integration-list">
-          <div>
-            <span>
-              <strong>Gemini</strong>
-              <small>Vídeo por URL e feedback de fala</small>
-            </span>
-            <span
-              className={`status ${data.integrations.gemini ? "good" : ""}`}
-            >
-              {data.integrations.gemini ? "Configurado" : "Não configurado"}
-            </span>
-          </div>
-          <div>
-            <span>
-              <strong>OpenAI</strong>
-              <small>
-                Tutor, atividades e traduções; provedor de texto atual:{" "}
-                {data.integrations.provider}
-              </small>
-            </span>
-            <span
-              className={`status ${data.integrations.openai ? "good" : ""}`}
-            >
-              {data.integrations.openai ? "Configurado" : "Não configurado"}
-            </span>
-          </div>
-          <div>
-            <span>
-              <strong>YouTube</strong>
-              <small>Metadados; o player oficial funciona sem chave</small>
-            </span>
-            <span
-              className={`status ${data.integrations.youtube ? "good" : ""}`}
-            >
-              {data.integrations.youtube ? "Configurado" : "Não configurado"}
-            </span>
-          </div>
+          {integrationProviders.map((provider) => (
+            <IntegrationRow key={provider.id} provider={provider} />
+          ))}
           <details>
-            <summary>Como conectar depois</summary>
+            <summary>O que a chave sozinha ainda não liga</summary>
             <p>
-              Configure um provedor de texto no arquivo <code>.env.local</code>,
-              revise seus preços e escolha <code>AI_TEXT_PROVIDER</code> como{" "}
-              <code>gemini</code> ou <code>openai</code>. Ative{" "}
-              <code>AI_ENABLED=true</code> e reinicie web e worker. Para
-              metadados, configure <code>YOUTUBE_API_KEY</code>.
+              A chave é um dos três requisitos do provedor de texto. Os outros
+              dois continuam no ambiente, de propósito, porque decidem gasto
+              real: <code>AI_ENABLED=true</code> e a data de revisão de preço (
+              <code>AI_PRICES_REVIEWED_ON</code> para o Gemini,{" "}
+              <code>OPENAI_PRICES_REVIEWED_ON</code> para a OpenAI), que vence
+              em 31 dias. <code>AI_TEXT_PROVIDER</code> escolhe qual dos dois
+              atende texto — hoje, <code>{data.integrations.provider}</code>.
+              Mudanças no <code>.env.local</code> exigem reiniciar web e worker;
+              chaves cadastradas aqui, não.
             </p>
             <p>
-              Consulte o guia de integrações do projeto antes de ativar chamadas
-              pagas.
+              Nenhuma chave é testada ao ser salva: verificar custaria uma
+              chamada real ao provedor. Consulte o guia de integrações do
+              projeto antes de ativar chamadas pagas.
             </p>
           </details>
         </div>

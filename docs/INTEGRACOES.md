@@ -1,12 +1,22 @@
 ---
 estado: real
 fonte: src/server/providers.ts, src/server/budget.ts, src/worker.ts, src/client/Practice.tsx
-ultima-revisao: 2026-09-15 (TASK-001 a TASK-007)
+ultima-revisao: 2026-09-17 (TASK-001 a TASK-011)
 ---
 
 # Provedores de IA
 
 O aplicativo separa o provedor de texto (`AI_TEXT_PROVIDER`) do caminho de vídeo e fala. **O piloto Gemini de texto foi executado em 15/09/2026 no tier gratuito.** Geração e tutor funcionaram com uso conciliado. A transcrição direta de URL chegou ao Gemini, mas o serviço devolveu HTTP 500/503 por alta demanda; nenhum segmento foi salvo por esse caminho. Em contrapartida, a legenda fornecida pelo proprietário carregou 53 trechos do vídeo escolhido e gerou uma atividade baseada neles. Resultados em [VALIDACAO.md](VALIDACAO.md).
+
+## Onde ficam as chaves
+
+Há dois caminhos, e o da interface tem precedência.
+
+**Ajustes → Integrações** cadastra a chave de Gemini, OpenAI e YouTube direto na tela. A chave é cifrada com AES-256-GCM antes de tocar o banco (chave derivada de `BETTER_AUTH_SECRET`), nunca volta por nenhuma rota — só os quatro últimos caracteres — e vale para o servidor e para o worker **sem reiniciar nada**. Salvar não dispara chamada ao provedor: validar custaria uma inferência sem reserva prévia. Detalhes e alternativas descartadas em [ADR-004](../.agents/decisions/ADR-004-chaves-de-api-cifradas-no-banco.md).
+
+**`.env.local`** continua valendo como fallback, para quem já tem a instalação configurada. A tela mostra de onde a chave em uso está vindo (`cadastrada aqui` ou `lida de GEMINI_API_KEY`). Alterar o arquivo ainda exige reiniciar aplicação e worker.
+
+O que **não** é cadastrável pela interface, de propósito, porque decide gasto real: `AI_ENABLED`, `AI_TEXT_PROVIDER` e as datas de revisão de preço. Os blocos `dotenv` abaixo continuam sendo a referência dessas variáveis; a linha `*_API_KEY` é opcional quando a chave for cadastrada na tela.
 
 ## Gemini
 

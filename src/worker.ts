@@ -7,6 +7,7 @@ import {
   videoIntegrationStatus,
   youtube,
 } from "./server/providers";
+import { refreshCredentials } from "./server/credentials";
 import { AppError, validateVideoTranscriptionDuration } from "./domain/content";
 import { removeUserObjects, storage } from "./server/storage";
 export async function prepare(id: string) {
@@ -16,6 +17,10 @@ export async function prepare(id: string) {
   );
   const job = rows[0];
   if (!job) return;
+  // O worker é outro processo: uma chave cadastrada pela interface chega aqui
+  // pelo banco, não por `process.env`. Carregar por job mantém o processo longo
+  // acompanhando uma troca de chave sem reinício.
+  await refreshCredentials(job.user_id);
   try {
     await emitJob(id, { status: "processing", completed: 0 });
     const source = (

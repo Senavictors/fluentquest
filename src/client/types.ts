@@ -119,16 +119,37 @@ export interface Bootstrap {
   due: number;
   progress: Progress;
   usage: Usage;
-  integrations: {
-    ai: boolean;
-    provider: "gemini" | "openai";
-    youtube: boolean;
-    gemini: boolean;
-    openai: boolean;
-    message: string;
-    model: string;
-  };
+  integrations: Integrations;
   scenarios: { id: string; title: string; skill: string; prompt: string }[];
+}
+export type CredentialProvider = "gemini" | "openai" | "youtube";
+export interface CredentialState {
+  configured: boolean;
+  // `ambiente` é chave vinda de .env.local; `interface` é chave cadastrada em
+  // Ajustes, que tem precedência sobre a do ambiente.
+  origin: "interface" | "ambiente" | null;
+  hint: string | null;
+  updatedAt: string | null;
+}
+export interface ProviderDetail {
+  ready: boolean;
+  key: boolean;
+  prices: boolean;
+  model: string;
+  priceReviewedOn: string;
+}
+export interface Integrations {
+  ai: boolean;
+  provider: "gemini" | "openai";
+  youtube: boolean;
+  gemini: boolean;
+  openai: boolean;
+  message: string;
+  model: string;
+  videoModel: string;
+  enabled: boolean;
+  keys: Record<CredentialProvider, CredentialState>;
+  detail: Record<"gemini" | "openai", ProviderDetail>;
 }
 export interface Recording {
   id: string;

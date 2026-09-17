@@ -32,6 +32,13 @@ import {
   assessSpeech,
   streamTutor,
 } from "./providers";
+import {
+  clearCredential,
+  credentialInput,
+  credentialProvider,
+  refreshCredentials,
+  setCredential,
+} from "./credentials";
 import { storage } from "./storage";
 import { usage, videoTranscriptionEstimateMicros } from "./budget";
 import { fileTypeFromBuffer } from "file-type";
@@ -234,6 +241,10 @@ export async function handle(request: Request, parts: string[]) {
       uid = user.id,
       method = request.method,
       [resource, id, action] = parts;
+    // Antes de qualquer rota que possa chamar provedor: `providerConfig()` e
+    // `youtube.get()` leem a chave de um cache de processo, e este é o ponto em
+    // que ele é preenchido para o usuário desta requisição.
+    await refreshCredentials(uid);
     const url = new URL(request.url),
       key = request.headers.get("Idempotency-Key");
     if (resource === "bootstrap" && method === "GET") {
@@ -291,6 +302,25 @@ export async function handle(request: Request, parts: string[]) {
         .parse(await body(request));
       await db.update(profiles).set(input).where(eq(profiles.userId, uid));
       return json({ saved: true });
+    }
+    if (resource === "integrations") {
+      if (method === "GET" && !id) return json(integrationStatus());
+      const provider = credentialProvider.parse(id);
+      if (method === "PUT") {
+        const input = z
+          .object({ key: credentialInput })
+          .parse(await body(request));
+        await setCredential(uid, provider, input.key);
+        // A chave nunca volta pela API — nem aqui, nem no bootstrap. O que a
+        // tela recebe de volta é o estado da integração com os quatro últimos
+        // caracteres, o bastante para o proprietário reconhecer qual chave está
+        // guardada sem que o segredo trafegue de novo.
+        return json(integrationStatus());
+      }
+      if (method === "DELETE") {
+        await clearCredential(uid, provider);
+        return json(integrationStatus());
+      }
     }
     if (resource === "diagnostic" && method === "POST") {
       const input = z
@@ -1365,7 +1395,10 @@ export async function handle(request: Request, parts: string[]) {
       // campos. Continua sendo devolvido como está — regenerar custaria uma
       // chamada de IA para cada trecho já traduzido.
       if (segment.translation)
-        return json({ legacyText: segment.translation, origin: segment.origin });
+        return json({
+          legacyText: segment.translation,
+          origin: segment.origin,
+        });
       requireAI();
       const support = await textAI.support(uid, segment.text);
       await query("UPDATE segments SET support=$2 WHERE id=$1", [

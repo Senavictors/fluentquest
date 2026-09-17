@@ -1,7 +1,7 @@
 ---
 estado: real
 fonte: package.json (scripts), next.config.ts, .env.example, .env.local, scripts/migrate.ts, scripts/setup.ts, .claude/launch.json
-ultima-revisao: 2026-09-15 (TASK-006, TASK-007)
+ultima-revisao: 2026-09-17 (TASK-006, TASK-007, TASK-011)
 ---
 
 # Implantação
@@ -34,6 +34,8 @@ Não há. A escolha de `--hostname 127.0.0.1` é deliberada: a aplicação **nã
 - `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_INPUT_USD_PER_MILLION`, `GEMINI_OUTPUT_USD_PER_MILLION`, `AI_PRICES_REVIEWED_ON` — Gemini para texto quando selecionado, vídeo por URL e transcrição de fala; a revisão vence em 31 dias.
 - `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_INPUT_USD_PER_MILLION`, `OPENAI_OUTPUT_USD_PER_MILLION`, `OPENAI_PRICES_REVIEWED_ON` — OpenAI para texto; a revisão vence em 31 dias. A chave nunca é exposta ao cliente.
 - `YOUTUBE_API_KEY` — opcional; só habilita metadados. O player funciona sem ela.
+
+As três chaves (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `YOUTUBE_API_KEY`) também podem ser cadastradas em Ajustes → Integrações, onde ficam cifradas na tabela `integration_credentials` e valem para web e worker sem reinício; a chave cadastrada tem precedência sobre a variável correspondente, que permanece como fallback (ADR-004). `AI_ENABLED`, `AI_TEXT_PROVIDER` e as datas de revisão de preço continuam exclusivamente no ambiente. Trocar `BETTER_AUTH_SECRET` torna as chaves guardadas ilegíveis e elas passam a contar como ausentes.
 - `DATA_DIR` — raiz dos arquivos privados (default `./data`).
 - `PG_BIN` — caminho dos binários do PostgreSQL, usado por backup e restauração.
 
