@@ -1,0 +1,14 @@
+.git
+.next
+node_modules
+test-results
+playwright-report
+coverage
+.env*
+data
+data-restore
+backups
+dumps
+.agents
+.claude
+.codex

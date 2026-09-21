@@ -82,3 +82,9 @@ Next.js 16 (App Router, Turbopack) + React 19; domínio puro em `src/domain/` (`
 - Trocar o modelo Gemini configurado (Flash-Lite, thinking minimal) sem revisar preço, modalidades e regressão.
 - Introduzir scraping, download de vídeo do YouTube, publicação, pagamentos, Live ou avatar 3D — estão fora do escopo declarado em `PRODUCT.md`.
 - Mover os documentos já existentes na raiz de `docs/` (`API.md`, `INTEGRACOES.md`, `OPERACAO.md`, `PRODUTO_ORIGINAL.md`) sem aprovação.
+
+## Atualização — 2026-09-19: preparação Railway
+
+O proprietário escolheu começar com PostgreSQL vazio e preparar hospedagem Railway. O `.env.local` e o banco local antigo não estão disponíveis; não há backup para importar. ADR-007 e TASK-016 registram a decisão. Foram preparados Dockerfile, scripts Railway, IaC com app/Postgres/volume, e criação do proprietário por variáveis de ambiente. A IaC aponta para `Senavictors/FluentQuest` na branch `main`, mantém IA desligada, uma réplica e não declara domínio público. **Nenhum recurso Railway foi provisionado ou publicado**; a próxima etapa é revisar `railway config plan` em um projeto Railway dedicado, nunca `PhisioFlow`. Consulte `docs/architecture/deployment.md` para o procedimento e as variáveis necessárias.
+
+O diretório local pode abrir a página, mas sem `.env.local` e banco acessível `GET /api/bootstrap` falha e a tela não conclui o carregamento. A reprodução local permanece separada da configuração remota.
