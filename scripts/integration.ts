@@ -443,6 +443,79 @@ try {
   ).data;
   assert.equal(card.id, again.id);
   ok("Cartões equivalentes não duplicam");
+  // TASK-013 / ADR-006: idioma de estudo aberto além de inglês, herdado da
+  // fonte pelo cartão, e língua de explicação gravada em learner_profiles.locale.
+  const esSource = await request("sources", "POST", {
+    kind: "text",
+    title: "Fixture em espanhol",
+    text: "Bajo carga el servicio responde más lento.",
+    rights: "owned",
+    consent: true,
+    language: "es-ES",
+  });
+  assert.equal(esSource.status, 202);
+  const esSourceDetail = (await request(`sources/${esSource.data.sourceId}`))
+    .data;
+  assert.equal(esSourceDetail.source.language, "es-ES");
+  ok("Fonte em idioma novo da lista fechada persiste esse idioma (CA-01)");
+  assert.equal(
+    (
+      await request("sources", "POST", {
+        kind: "text",
+        title: "Fixture idioma recusado",
+        text: "Texto qualquer.",
+        rights: "owned",
+        consent: true,
+        language: "xx-XX",
+      })
+    ).status,
+    422,
+  );
+  ok("Idioma fora da lista fechada é recusado (CA-01)");
+  const esCard = (
+    await request("cards", "POST", {
+      expression: "bajo carga",
+      meaning: "sob carga",
+      example: "El servicio se ralentiza bajo carga.",
+      sourceId: esSource.data.sourceId,
+      segmentId: esSourceDetail.segments[0].id,
+    })
+  ).data;
+  assert.equal(esCard.language, "es-ES");
+  ok(
+    "Cartão criado a partir de uma fonte herda o idioma dela, mesmo sem declarar language (CA-02)",
+  );
+  const enSameExpressionCard = (
+    await request("cards", "POST", {
+      expression: "bajo carga",
+      meaning: "sob carga",
+      example: "Under heavy load the service slows down.",
+      language: "en-US",
+    })
+  ).data;
+  assert.notEqual(enSameExpressionCard.id, esCard.id);
+  assert.equal(enSameExpressionCard.language, "en-US");
+  ok("Mesma expressão e sentido coexistem em idiomas diferentes (CA-03)");
+  const noLanguageSource = await request("sources", "POST", {
+    kind: "text",
+    title: "Fixture sem idioma informado",
+    text: "No language declared in this request.",
+    rights: "owned",
+    consent: true,
+  });
+  assert.equal(
+    (await request(`sources/${noLanguageSource.data.sourceId}`)).data.source
+      .language,
+    "en-US",
+  );
+  ok("Requisição sem language continua resultando em en-US (CA-05)");
+  await request("profile", "PATCH", { explanationLanguage: "es-ES" });
+  assert.equal((await request("bootstrap")).data.profile.locale, "es-ES");
+  await request("profile", "PATCH", { explanationLanguage: "pt-BR" });
+  assert.equal((await request("bootstrap")).data.profile.locale, "pt-BR");
+  ok(
+    "PATCH /api/profile grava explanationLanguage em locale e o bootstrap devolve (CA-04)",
+  );
   const duplicateKey = randomUUID();
   const reviews = await Promise.all([
     request(

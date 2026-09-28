@@ -15,6 +15,7 @@ import {
   validateVideoTranscriptionDuration,
   youtubeId,
   scenarios,
+  SUPPORTED_LANGUAGES,
 } from "../domain/content";
 import {
   initialCard,
@@ -292,6 +293,12 @@ export async function handle(request: Request, parts: string[]) {
           ]),
           difficulty: z.enum(["A1", "A2", "B1", "B2", "C1"]),
           englishVariant: z.enum(["en-US", "en-GB"]),
+          // TASK-013 / ADR-006: língua de explicação, gravada em
+          // `learner_profiles.locale` — a coluna já existe desde a 001 e
+          // nunca tinha sido lida nem escrita. Validada contra a mesma
+          // lista fechada de sourceInput/cardInput (RN-01): é entrada do
+          // usuário que vai entrar em prompt na TASK-014.
+          explanationLanguage: z.enum(SUPPORTED_LANGUAGES),
           theme: z.enum(["system", "light", "dark"]),
           onboarded: z.boolean(),
           monthlyLimitCents: z.number().int().min(0).max(100000),
@@ -300,7 +307,16 @@ export async function handle(request: Request, parts: string[]) {
         })
         .partial()
         .parse(await body(request));
-      await db.update(profiles).set(input).where(eq(profiles.userId, uid));
+      const { explanationLanguage, ...rest } = input;
+      await db
+        .update(profiles)
+        .set({
+          ...rest,
+          ...(explanationLanguage !== undefined
+            ? { locale: explanationLanguage }
+            : {}),
+        })
+        .where(eq(profiles.userId, uid));
       return json({ saved: true });
     }
     if (resource === "integrations") {
@@ -849,7 +865,9 @@ export async function handle(request: Request, parts: string[]) {
     }
     if (resource === "cards" && !id && method === "POST") {
       const input = cardInput.parse(await body(request));
-      if (input.sourceId) await sourceFor(uid, input.sourceId);
+      const source = input.sourceId
+        ? await sourceFor(uid, input.sourceId)
+        : null;
       if (
         input.segmentId &&
         !(
@@ -860,6 +878,19 @@ export async function handle(request: Request, parts: string[]) {
         ).length
       )
         throw new AppError("NOT_FOUND", "Trecho não encontrado.", 404);
+      // RN-02 (TASK-013): o cartão herda o idioma da fonte de origem; sem
+      // fonte, usa o idioma informado no próprio input (mesmo default de
+      // cardInput).
+      const language = source ? (source.language as string) : input.language;
+      const [profile] = await db
+        .select({ locale: profiles.locale })
+        .from(profiles)
+        .where(eq(profiles.userId, uid));
+      // RN-03: a expressão é normalizada no idioma de estudo; o
+      // significado, na língua de explicação do perfil — antes as duas
+      // levavam a regra de casing de inglês, inclusive o significado
+      // escrito em português.
+      const explanationLanguage = profile?.locale ?? "pt-BR";
       return json(
         await idempotent(uid, "card", key, input, async (c) => {
           const card = initialCard();
@@ -871,11 +902,11 @@ export async function handle(request: Request, parts: string[]) {
                 input.sourceId || null,
                 input.segmentId || null,
                 input.expression,
-                normalize(input.expression),
+                normalize(input.expression, language),
                 input.meaning,
-                normalize(input.meaning),
+                normalize(input.meaning, explanationLanguage),
                 input.example,
-                input.language,
+                language,
                 input.mode,
                 JSON.stringify(card),
                 FSRS_CONFIG_VERSION,

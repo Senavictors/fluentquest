@@ -9,8 +9,35 @@ export class AppError extends Error {
     super(message);
   }
 }
-export const normalize = (value: string) =>
-  value.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("en");
+// TASK-013 / ADR-006: lista única de idiomas suportados — vale tanto para o
+// idioma de estudo (sourceInput/cardInput) quanto para a língua de
+// explicação do perfil (`learner_profiles.locale`). RN-01: não pode existir
+// uma segunda lista, em servidor ou cliente.
+export const SUPPORTED_LANGUAGES = [
+  "en-US",
+  "en-GB",
+  "es-ES",
+  "es-AR",
+  "es-CL",
+  "es-MX",
+  "it-IT",
+  "fr-FR",
+  "zh-CN",
+  "ja-JP",
+  "ru-RU",
+  "pt-BR",
+] as const;
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+// RN-03: o idioma passa a ser explícito por chamada — antes a regra de
+// casing de inglês era aplicada até ao significado em português. `language`
+// é `string`, não `SupportedLanguage`, porque a regra de casing do
+// `Intl` não depende da política de idiomas do produto.
+export const normalize = (value: string, language: string) =>
+  value
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase(language);
 export function youtubeId(value: string): string {
   let url: URL;
   try {
@@ -252,7 +279,7 @@ export const sourceInput = z.object({
   author: z.string().trim().min(1).max(120).default("Material próprio"),
   url: z.string().max(500).optional(),
   text: z.string().max(500000).optional(),
-  language: z.enum(["en-US", "en-GB"]).default("en-US"),
+  language: z.enum(SUPPORTED_LANGUAGES).default("en-US"),
   rights: z.enum(["owned", "licensed", "public_link"]),
   transcriptionMode: z.enum(["manual", "ai"]).default("manual"),
   consent: z.literal(true),
@@ -263,7 +290,7 @@ export const cardInput = z.object({
   example: z.string().trim().min(1).max(1200),
   sourceId: z.string().uuid().optional(),
   segmentId: z.string().uuid().optional(),
-  language: z.enum(["en-US", "en-GB"]).default("en-US"),
+  language: z.enum(SUPPORTED_LANGUAGES).default("en-US"),
   mode: z
     .enum(["production", "recognition", "listening"])
     .default("production"),

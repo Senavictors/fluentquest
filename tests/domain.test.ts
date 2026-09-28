@@ -7,6 +7,9 @@ import {
   videoTranscript,
   fitTranscriptToDuration,
   assertTranscriptCoverage,
+  SUPPORTED_LANGUAGES,
+  sourceInput,
+  cardInput,
 } from "../src/domain/content";
 import { initialCard, scheduleCard, xpLevel } from "../src/domain/review";
 import { tokenCostMicros, budgetPeriod } from "../src/server/budget";
@@ -48,8 +51,48 @@ describe("Fontes e proveniência", () => {
       expect(() => parseContent(value)).toThrow();
   });
   it("deduplica expressão sem fundir sentidos diferentes", () => {
-    expect(normalize("  Under   LOAD ")).toBe("under load");
-    expect(normalize("carga de trabalho")).not.toBe(normalize("carregamento"));
+    expect(normalize("  Under   LOAD ", "en-US")).toBe("under load");
+    expect(normalize("carga de trabalho", "pt-BR")).not.toBe(
+      normalize("carregamento", "pt-BR"),
+    );
+  });
+  it("normalize() usa o casing do idioma recebido, não uma regra fixa de inglês (CA-06)", () => {
+    // "I" maiúsculo vira "i" em inglês, mas "ı" (sem ponto) em turco — a regra
+    // de casing muda com o idioma, como o RN-03 exige. O turco não está na
+    // lista fechada de idiomas de estudo: normalize() é utilitário puro de
+    // Intl, não depende da política de idiomas do produto.
+    expect(normalize("I", "en-US")).toBe("i");
+    expect(normalize("I", "tr-TR")).not.toBe(normalize("I", "en-US"));
+  });
+  it("abre a lista fechada de idiomas de estudo além de inglês, com o mesmo default (CA-01, CA-05)", () => {
+    expect(SUPPORTED_LANGUAGES).toContain("es-ES");
+    expect(SUPPORTED_LANGUAGES).toContain("pt-BR");
+    const base = {
+      kind: "text" as const,
+      title: "Teste",
+      rights: "owned" as const,
+      consent: true as const,
+    };
+    expect(sourceInput.parse(base).language).toBe("en-US");
+    expect(sourceInput.parse({ ...base, language: "es-ES" }).language).toBe(
+      "es-ES",
+    );
+    expect(() =>
+      sourceInput.parse({ ...base, language: "xx-XX" }),
+    ).toThrow();
+  });
+  it("cartão em idiomas diferentes com a mesma expressão e sentido não colide no contrato (CA-03)", () => {
+    const base = {
+      expression: "bajo carga",
+      meaning: "sob carga",
+      example: "El servicio se ralentiza bajo carga.",
+    };
+    const es = cardInput.parse({ ...base, language: "es-ES" });
+    const en = cardInput.parse({ ...base, language: "en-US" });
+    expect(es.language).not.toBe(en.language);
+    // A chave única de `cards` já inclui `language` (migração 001); o
+    // domínio só precisa deixar os dois parsear sem se recusar.
+    expect(es.expression).toBe(en.expression);
   });
   it("limita a transcrição por URL a vídeos com duração conhecida de até 15 minutos", () => {
     expect(validateVideoTranscriptionDuration(15 * 60 * 1000)).toBe(900000);
