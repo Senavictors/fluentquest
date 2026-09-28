@@ -595,3 +595,67 @@ describe("Resposta cobrada que não passa na validação", () => {
     ).toBe(false);
   });
 });
+
+describe("Prompts parametrizados por idioma (TASK-014)", () => {
+  it("transcrição de vídeo nomeia o idioma de estudo declarado, não inglês fixo (CA-01)", async () => {
+    mocks.create.mockResolvedValue({
+      output_text: JSON.stringify({
+        language: "es",
+        segments: [{ startMs: 0, endMs: 60000, text: "Fixture en español." }],
+      }),
+      status: "completed",
+      usage: {
+        total_input_tokens: 100,
+        total_output_tokens: 20,
+        total_tokens: 120,
+      },
+    });
+    await gemini.transcribeVideo(
+      "user",
+      "https://youtu.be/abcdefghijk",
+      60000,
+      "es-ES",
+      "pt-BR",
+    );
+    const prompt = mocks.create.mock.calls[0][0].input.find(
+      (block: { type: string }) => block.type === "text",
+    ).text;
+    expect(prompt).toContain("Spanish (Spain)");
+    expect(prompt).not.toContain("spoken English");
+  });
+
+  it("apoio de trecho pede tradução na língua de explicação e exemplo no idioma de estudo (CA-02)", async () => {
+    mocks.create.mockResolvedValue({
+      output_text: JSON.stringify({
+        translation: "Fixture translation",
+        point: "Fixture point",
+        example: "Fixture example",
+        question: "Fixture question",
+      }),
+      status: "completed",
+      usage: { total_input_tokens: 10, total_output_tokens: 5 },
+    });
+    await gemini.support("user", "A sentence.", "es-ES", "pt-BR");
+    const prompt = mocks.create.mock.calls[0][0].input as string;
+    expect(prompt).toContain('in Portuguese (Brazil) except for "example"');
+    expect(prompt).toContain("NEW Spanish (Spain) sentence");
+  });
+
+  it("cache não reaproveita a mesma pergunta entre pares de idioma diferentes (CA-03)", async () => {
+    await gemini.explain("user", "text", "question", "en-US", "pt-BR");
+    await gemini.explain("user", "text", "question", "es-ES", "pt-BR");
+    const keys = mocks.query.mock.calls
+      .filter(([sql]) => sql.includes("SELECT value FROM result_cache"))
+      .map(([, params]) => params[0]);
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it("função indisponível responde integração não configurada em qualquer idioma (CA-04)", async () => {
+    vi.stubEnv("AI_ENABLED", "false");
+    await expect(
+      gemini.support("user", "A sentence.", "ja-JP", "pt-BR"),
+    ).rejects.toMatchObject({ code: "INTEGRATION_NOT_CONFIGURED" });
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+});

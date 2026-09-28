@@ -8,7 +8,12 @@ import {
   youtube,
 } from "./server/providers";
 import { refreshCredentials } from "./server/credentials";
-import { AppError, validateVideoTranscriptionDuration } from "./domain/content";
+import {
+  AppError,
+  validateVideoTranscriptionDuration,
+  languageDiverges,
+  type SupportedLanguage,
+} from "./domain/content";
 import { removeUserObjects, storage } from "./server/storage";
 export async function prepare(id: string) {
   const rows = await query(
@@ -30,6 +35,17 @@ export async function prepare(id: string) {
       ])
     )[0];
     if (!source) return;
+    // TASK-014 / ADR-006: idioma de estudo é o da fonte; a língua de
+    // explicação é do perfil. Mesmo default de TASK-013 (en-US/pt-BR) se o
+    // perfil ainda não gravou `locale`.
+    const studyLanguage = (source.language as SupportedLanguage) ?? "en-US";
+    const profileRow = (
+      await query("SELECT locale FROM learner_profiles WHERE user_id=$1", [
+        job.user_id,
+      ])
+    )[0];
+    const explanationLanguage =
+      (profileRow?.locale as SupportedLanguage) ?? "pt-BR";
     let durationMs = source.duration_ms as number | null;
     if (source.video_id && integrationStatus().youtube) {
       const metadata = await youtube.get(source.video_id);
@@ -82,7 +98,24 @@ export async function prepare(id: string) {
         job.user_id,
         source.url,
         Number(durationMs),
+        studyLanguage,
+        explanationLanguage,
       );
+      // RN-05 (TASK-014): divergência entre o idioma declarado na fonte e o
+      // que o provedor detectou é registrada no evento do job, não tratada
+      // como erro fatal — o proprietário pode ter declarado errado, e
+      // descartar uma transcrição já paga por isso repetiria o defeito
+      // corrigido na TASK-004.
+      if (languageDiverges(studyLanguage, transcript.language))
+        await emitJob(id, {
+          status: "processing",
+          completed: 1,
+          total: 3,
+          languageMismatch: {
+            declared: studyLanguage,
+            detected: transcript.language,
+          },
+        });
       await emitJob(id, { status: "processing", completed: 2, total: 3 });
       await transaction(async (c) => {
         const current = (
@@ -140,6 +173,8 @@ export async function prepare(id: string) {
     const unit = await textAI.generate(
       job.user_id,
       segments as { id: string; text: string }[],
+      studyLanguage,
+      explanationLanguage,
     );
     await transaction(async (c) => {
       const current = (

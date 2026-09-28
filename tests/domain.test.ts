@@ -10,6 +10,7 @@ import {
   SUPPORTED_LANGUAGES,
   sourceInput,
   cardInput,
+  languageDiverges,
 } from "../src/domain/content";
 import { initialCard, scheduleCard, xpLevel } from "../src/domain/review";
 import { tokenCostMicros, budgetPeriod } from "../src/server/budget";
@@ -268,5 +269,17 @@ describe("Piso de cobertura da transcrição de vídeo", () => {
     const segments = [{ startMs: 0, endMs: 936000 }];
     expect(assertTranscriptCoverage(segments, 837000)).toBe(936000);
     expect(fitTranscriptToDuration(segments, 837000)[0].endMs).toBe(837000);
+  });
+});
+
+describe("Divergência de idioma declarado × detectado (TASK-014, RN-05)", () => {
+  it("não sinaliza divergência entre variantes do mesmo idioma", () => {
+    expect(languageDiverges("en-US", "en")).toBe(false);
+    expect(languageDiverges("en-US", "English")).toBe(false);
+    expect(languageDiverges("pt-BR", "pt-PT")).toBe(false);
+  });
+  it("sinaliza divergência entre idiomas realmente diferentes", () => {
+    expect(languageDiverges("es-ES", "en")).toBe(true);
+    expect(languageDiverges("en-US", "japanese")).toBe(true);
   });
 });

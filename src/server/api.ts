@@ -16,6 +16,7 @@ import {
   youtubeId,
   scenarios,
   SUPPORTED_LANGUAGES,
+  type SupportedLanguage,
 } from "../domain/content";
 import {
   initialCard,
@@ -136,6 +137,32 @@ async function sourceFor(userId: string, id: string, c?: PoolClient) {
       ]);
   if (!rows[0]) throw new AppError("NOT_FOUND", "Fonte não encontrada.", 404);
   return rows[0];
+}
+// TASK-014 / ADR-006: idioma de estudo (da fonte, quando há uma) e língua de
+// explicação (do perfil), com o mesmo default histórico de TASK-013
+// (en-US/pt-BR) quando não há fonte ou perfil ainda não gravou `locale`.
+// Único ponto que resolve os dois — chamadores de IA não repetem a consulta.
+async function resolveLanguages(
+  userId: string,
+  sourceId?: string | null,
+  fallbackStudy: SupportedLanguage = "en-US",
+): Promise<{ study: SupportedLanguage; explanation: SupportedLanguage }> {
+  const [[profile], source] = await Promise.all([
+    db
+      .select({ locale: profiles.locale })
+      .from(profiles)
+      .where(eq(profiles.userId, userId)),
+    sourceId
+      ? query("SELECT language FROM sources WHERE id=$1 AND user_id=$2", [
+          sourceId,
+          userId,
+        ])
+      : Promise.resolve([]),
+  ]);
+  return {
+    study: (source[0]?.language as SupportedLanguage) ?? fallbackStudy,
+    explanation: (profile?.locale as SupportedLanguage) ?? "pt-BR",
+  };
 }
 async function award(
   c: PoolClient,
@@ -865,9 +892,7 @@ export async function handle(request: Request, parts: string[]) {
     }
     if (resource === "cards" && !id && method === "POST") {
       const input = cardInput.parse(await body(request));
-      const source = input.sourceId
-        ? await sourceFor(uid, input.sourceId)
-        : null;
+      if (input.sourceId) await sourceFor(uid, input.sourceId);
       if (
         input.segmentId &&
         !(
@@ -880,17 +905,10 @@ export async function handle(request: Request, parts: string[]) {
         throw new AppError("NOT_FOUND", "Trecho não encontrado.", 404);
       // RN-02 (TASK-013): o cartão herda o idioma da fonte de origem; sem
       // fonte, usa o idioma informado no próprio input (mesmo default de
-      // cardInput).
-      const language = source ? (source.language as string) : input.language;
-      const [profile] = await db
-        .select({ locale: profiles.locale })
-        .from(profiles)
-        .where(eq(profiles.userId, uid));
-      // RN-03: a expressão é normalizada no idioma de estudo; o
-      // significado, na língua de explicação do perfil — antes as duas
-      // levavam a regra de casing de inglês, inclusive o significado
-      // escrito em português.
-      const explanationLanguage = profile?.locale ?? "pt-BR";
+      // cardInput). RN-03: a expressão normaliza no idioma de estudo; o
+      // significado, na língua de explicação do perfil.
+      const { study: language, explanation: explanationLanguage } =
+        await resolveLanguages(uid, input.sourceId, input.language);
       return json(
         await idempotent(uid, "card", key, input, async (c) => {
           const card = initialCard();
@@ -1334,11 +1352,14 @@ export async function handle(request: Request, parts: string[]) {
           )
         )[0];
         if (existing) return json(existing.feedback);
+        const speechLanguages = await resolveLanguages(uid, rec.source_id);
         const feedback = await assessSpeech(
           uid,
           await storage.get(rec.file_key),
           rec.mime_type,
           "Explain the situation and your next step.",
+          speechLanguages.study,
+          speechLanguages.explanation,
         );
         if (
           (
@@ -1377,6 +1398,7 @@ export async function handle(request: Request, parts: string[]) {
         "SELECT text FROM segments WHERE source_id=$1 ORDER BY ordinal LIMIT 8",
         [unit.source_id],
       );
+      const tutorLanguages = await resolveLanguages(uid, unit.source_id);
       let cancelled = false;
       const encoder = new TextEncoder();
       return new Response(
@@ -1396,6 +1418,8 @@ export async function handle(request: Request, parts: string[]) {
                 segs.map((s) => s.text).join("\n"),
                 input.question,
                 (chunk) => send("text", { text: chunk }),
+                tutorLanguages.study,
+                tutorLanguages.explanation,
               );
               await query(
                 "INSERT INTO tutor_messages(user_id,unit_id,role,content) SELECT $1,$2,'assistant',$3 WHERE NOT EXISTS(SELECT 1 FROM deletion_requests WHERE user_id=$1)",
@@ -1451,7 +1475,13 @@ export async function handle(request: Request, parts: string[]) {
           origin: segment.origin,
         });
       requireAI();
-      const support = await textAI.support(uid, segment.text);
+      const supportLanguages = await resolveLanguages(uid, segment.source_id);
+      const support = await textAI.support(
+        uid,
+        segment.text,
+        supportLanguages.study,
+        supportLanguages.explanation,
+      );
       await query("UPDATE segments SET support=$2 WHERE id=$1", [
         id,
         JSON.stringify(support),

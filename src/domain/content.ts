@@ -28,6 +28,34 @@ export const SUPPORTED_LANGUAGES = [
   "pt-BR",
 ] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+// TASK-014 / ADR-006: nome em inglês de cada idioma da lista fechada, para
+// compor prompt (o texto do prompt é em inglês). Não é uma segunda lista —
+// é rótulo 1:1 da mesma `SUPPORTED_LANGUAGES` (RN-01).
+export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
+  "en-US": "English (US)",
+  "en-GB": "English (UK)",
+  "es-ES": "Spanish (Spain)",
+  "es-AR": "Spanish (Argentina)",
+  "es-CL": "Spanish (Chile)",
+  "es-MX": "Spanish (Mexico)",
+  "it-IT": "Italian",
+  "fr-FR": "French",
+  "zh-CN": "Mandarin Chinese (Simplified)",
+  "ja-JP": "Japanese",
+  "ru-RU": "Russian",
+  "pt-BR": "Portuguese (Brazil)",
+};
+// RN-05 (TASK-014): o provedor devolve `videoTranscript.language` como texto
+// livre ("en", "English", "en-US"...). Comparar só a subtag primária evita
+// falso positivo entre variantes do mesmo idioma (en-US declarado, "English"
+// detectado) — divergência real é um idioma diferente, não uma variante.
+export function languageDiverges(
+  declared: SupportedLanguage,
+  detected: string,
+): boolean {
+  const primary = declared.split("-")[0].toLowerCase();
+  return !detected.toLowerCase().includes(primary);
+}
 // RN-03: o idioma passa a ser explícito por chamada — antes a regra de
 // casing de inglês era aplicada até ao significado em português. `language`
 // é `string`, não `SupportedLanguage`, porque a regra de casing do

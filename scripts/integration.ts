@@ -255,6 +255,45 @@ try {
       "Transcrição por URL exige consentimento e persiste proveniência atômica",
     );
 
+    // TASK-014 / RN-05: divergência entre o idioma declarado na fonte
+    // (es-ES) e o que o provedor detecta (mock devolve "en") fica registrada
+    // no evento do job, sem descartar a transcrição.
+    const mismatchVideo = await request("sources", "POST", {
+      ...videoInput,
+      url: "https://youtu.be/abcdefghijp",
+      language: "es-ES",
+      transcriptionMode: "ai",
+    });
+    gemini.transcribeVideo = async () => ({
+      language: "en",
+      segments: [{ startMs: 0, endMs: 12000, text: "Actually in English." }],
+    });
+    const mismatchTranscription = await request(
+      `sources/${mismatchVideo.data.sourceId}/transcribe`,
+      "POST",
+      { consent: true },
+    );
+    await prepare(mismatchTranscription.data.jobId);
+    const mismatchEvents = await query(
+      "SELECT data FROM job_events WHERE job_id=$1",
+      [mismatchTranscription.data.jobId],
+    );
+    assert.ok(
+      mismatchEvents.some(
+        (e) =>
+          e.data.languageMismatch?.declared === "es-ES" &&
+          e.data.languageMismatch?.detected === "en",
+      ),
+    );
+    const mismatchDetail = (
+      await request(`sources/${mismatchVideo.data.sourceId}`)
+    ).data;
+    assert.equal(mismatchDetail.source.status, "text_ready");
+    assert.equal(mismatchDetail.segments.length, 1);
+    ok(
+      "Divergência de idioma detectado fica registrada sem descartar a transcrição (TASK-014 CA-05)",
+    );
+
     const failingVideo = await request("sources", "POST", {
       ...videoInput,
       url: "https://youtu.be/abcdefghijo",
@@ -515,6 +554,18 @@ try {
   assert.equal((await request("bootstrap")).data.profile.locale, "pt-BR");
   ok(
     "PATCH /api/profile grava explanationLanguage em locale e o bootstrap devolve (CA-04)",
+  );
+  // TASK-014 / ADR-006: prompts parametrizados por idioma. IA continua
+  // desligada nesta suíte — o único comportamento verificável sem chamada
+  // real é que a recusa por integração não configurada vale para qualquer
+  // idioma de estudo, não só inglês.
+  assert.equal(
+    (await request(`sources/${esSource.data.sourceId}/prepare`, "POST", {}))
+      .data.code,
+    "INTEGRATION_NOT_CONFIGURED",
+  );
+  ok(
+    "Fonte em idioma novo sem IA continua respondendo integração não configurada (TASK-014 CA-04)",
   );
   const duplicateKey = randomUUID();
   const reviews = await Promise.all([
