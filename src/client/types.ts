@@ -66,6 +66,7 @@ export interface Profile {
   theme: "system" | "light" | "dark";
   onboarded: boolean;
   englishVariant: string;
+  locale: string;
   monthlyLimitCents: number;
   alertCents: number;
   diagnostic: Record<string, unknown>;
@@ -164,6 +165,7 @@ export interface ReviewCard {
   meaning: string;
   example: string;
   mode: string;
+  language: string;
   due: string;
   version: number;
   source_title: string | null;

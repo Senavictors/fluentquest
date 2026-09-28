@@ -18,6 +18,7 @@ import {
 import { useApp, PageHead, Empty } from "./App";
 import { api, clock, date } from "./http";
 import type { Recording, ReviewCard } from "./types";
+import { languageLabel } from "./languages";
 export function Practice() {
   const { data, run, refresh, notify, busy } = useApp();
   const params = useSearchParams();
@@ -536,7 +537,7 @@ export function Practice() {
   );
 }
 export function Reviews() {
-  const { run, refresh, busy } = useApp();
+  const { data, run, refresh, busy } = useApp();
   const [queue, setQueue] = useState<ReviewCard[]>([]),
     [ready, setReady] = useState(false),
     [total, setTotal] = useState(0),
@@ -544,7 +545,9 @@ export function Reviews() {
     [revealed, setRevealed] = useState(false),
     [undo, setUndo] = useState(""),
     [nextDue, setNextDue] = useState<string | null>(null),
-    [typed, setTyped] = useState("");
+    [typed, setTyped] = useState(""),
+    // TASK-015 (RN-04): preferência de tela, não vira estado de servidor.
+    [languageFilter, setLanguageFilter] = useState("all");
   async function load() {
     const result = await api<{
       cards: ReviewCard[];
@@ -562,7 +565,17 @@ export function Reviews() {
       window.speechSynthesis?.cancel();
     };
   }, []);
-  const current = queue[0];
+  const languages = [...new Set(queue.map((c) => c.language))];
+  // Se o filtro escolhido não existe mais na fila (o idioma acabou), volta a
+  // mostrar todos em vez de uma fila vazia sem explicação nem como sair dela.
+  const effectiveFilter = languages.includes(languageFilter)
+    ? languageFilter
+    : "all";
+  const visibleQueue =
+    effectiveFilter === "all"
+      ? queue
+      : queue.filter((c) => c.language === effectiveFilter);
+  const current = visibleQueue[0];
   async function answer(rating: number) {
     if (!current) return;
     await run(async () => {
@@ -582,7 +595,7 @@ export function Reviews() {
   const listen = () => {
     if (!current) return;
     const utterance = new SpeechSynthesisUtterance(current.example);
-    utterance.lang = "en-US";
+    utterance.lang = current.language;
     utterance.rate = 0.85;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
@@ -602,10 +615,26 @@ export function Reviews() {
         <span>
           Revisar <b>{completed} concluídos</b>
         </span>
-        <span>{queue.length} na fila</span>
+        <span>{visibleQueue.length} na fila</span>
+        {languages.length > 1 && (
+          <label className="review-filter">
+            Idioma
+            <select
+              value={effectiveFilter}
+              onChange={(e) => setLanguageFilter(e.target.value)}
+            >
+              <option value="all">Todos os idiomas</option>
+              {languages.map((code) => (
+                <option key={code} value={code}>
+                  {languageLabel(code)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <progress
           value={completed}
-          max={completed + queue.length || 1}
+          max={completed + visibleQueue.length || 1}
           aria-label="Progresso desta revisão"
         />
       </div>
@@ -649,7 +678,7 @@ export function Reviews() {
               </span>
             </>
           ) : (
-            <h2 lang={current.mode === "production" ? "pt-BR" : "en"}>
+            <h2 lang={current.mode === "production" ? data.profile.locale : current.language}>
               {current.mode === "production"
                 ? current.meaning
                 : current.expression}
@@ -659,13 +688,13 @@ export function Reviews() {
             {current.mode === "recognition"
               ? "Qual é o sentido desta expressão?"
               : current.mode === "production"
-                ? "Como você expressaria essa ideia em inglês? Use em uma frase."
+                ? `Como você expressaria essa ideia em ${languageLabel(current.language)}? Use em uma frase.`
                 : "Qual expressão você reconheceu no exemplo?"}
           </p>
           <label className="review-answer-label">
             Sua lembrança (opcional)
             <input
-              lang="en"
+              lang={current.language}
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               placeholder="Diga em voz alta ou escreva aqui"
@@ -681,9 +710,9 @@ export function Reviews() {
             </button>
           ) : (
             <div className="revealed">
-              <h3 lang="en">{current.expression}</h3>
+              <h3 lang={current.language}>{current.expression}</h3>
               <p>{current.meaning}</p>
-              <p lang="en" className="italic">
+              <p lang={current.language} className="italic">
                 {current.example}
               </p>
               <p className="small quiet">
@@ -712,6 +741,8 @@ export function Reviews() {
             {current.source_title
               ? `Da fonte “${current.source_title}”`
               : "Expressão adicionada por você"}
+            {" · "}
+            {languageLabel(current.language)}
             <br />O agendamento mede a memória deste item, não sua fluência.
           </p>
         </section>

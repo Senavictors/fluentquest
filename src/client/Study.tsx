@@ -33,6 +33,12 @@ import type {
   Unit,
   Vocabulary,
 } from "./types";
+import {
+  languageLabel,
+  isEnglish,
+  STUDY_LANGUAGE_OPTIONS,
+  type SupportedLanguage,
+} from "./languages";
 // Apoio de um trecho. Quatro blocos que servem momentos diferentes, então
 // descem em ordem de uso: a tradução é o que se procura de relance e vem
 // primeiro; ponto e exemplo explicam; a pergunta é tarefa, não leitura, e por
@@ -43,11 +49,13 @@ function SegmentSupport({
   legacyText,
   loading,
   aiReady,
+  language,
 }: {
   support: SegmentSupport | null;
   legacyText: string | null;
   loading: boolean;
   aiReady: boolean;
+  language: string;
 }) {
   if (support)
     return (
@@ -62,7 +70,7 @@ function SegmentSupport({
         </div>
         <div className="support-block support-example">
           <dt>Exemplo</dt>
-          <dd lang="en">{support.example}</dd>
+          <dd lang={language}>{support.example}</dd>
         </div>
         <div className="support-block support-task">
           <dt>Sua vez</dt>
@@ -226,7 +234,7 @@ export function Library() {
                   <Link href={`/estudar/${source.id}`}>{source.title}</Link>
                 </h2>
                 <p>
-                  {source.author} <span>·</span> {source.language}
+                  {source.author} <span>·</span> {languageLabel(source.language)}
                 </p>
                 <span className="small quiet">
                   {source.segment_count
@@ -267,7 +275,9 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
       "manual",
     ),
     [consent, setConsent] = useState(false),
-    [file, setFile] = useState<File | null>(null);
+    [file, setFile] = useState<File | null>(null),
+    [language, setLanguage] = useState<SupportedLanguage>("en-US");
+  const english = isEnglish(language);
   return (
     <form
       className="import-form"
@@ -311,7 +321,7 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
               transcriptionMode:
                 kind === "youtube" ? transcriptionMode : "manual",
               consent,
-              language: "en-US",
+              language,
             });
             await onDone(value.sourceId);
           }
@@ -357,6 +367,49 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
           />
         </label>
       </div>
+      <div className="form-grid">
+        <label>
+          Idioma do conteúdo
+          <select
+            value={english ? "en" : language}
+            onChange={(e) => {
+              const value = e.target.value;
+              setLanguage(
+                value === "en"
+                  ? ((data.profile.englishVariant || "en-US") as SupportedLanguage)
+                  : (value as SupportedLanguage),
+              );
+            }}
+          >
+            {STUDY_LANGUAGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {english && (
+          <label>
+            Variedade do inglês
+            <select
+              value={language}
+              onChange={(e) =>
+                setLanguage(e.target.value as SupportedLanguage)
+              }
+            >
+              <option value="en-US">Americano</option>
+              <option value="en-GB">Britânico</option>
+            </select>
+          </label>
+        )}
+      </div>
+      {!english && (
+        <p className="small quiet">
+          O pacote de exemplo, os cenários de prática e o diagnóstico inicial
+          existem só em inglês, independente do idioma que você escolher
+          aqui.
+        </p>
+      )}
       {kind === "youtube" && (
         <>
           <label>
@@ -409,7 +462,7 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
             <label>
               {kind === "youtube"
                 ? "Legenda autorizada (opcional)"
-                : "Texto ou legenda em inglês"}
+                : `Texto ou legenda em ${languageLabel(language)}`}
               <textarea
                 rows={5}
                 required={kind === "text"}
@@ -642,7 +695,9 @@ function Player({
       <span>
         {source.is_example ? "Leitura de exemplo" : "Seu material de leitura"}
       </span>
-      <p lang="en">{selected?.text || "Escolha um trecho para começar."}</p>
+      <p lang={source.language}>
+        {selected?.text || "Escolha um trecho para começar."}
+      </p>
       <span className="small">
         Leia. Faça uma pausa. Diga com suas palavras.
       </span>
@@ -930,7 +985,7 @@ export function Study({ sourceId }: { sourceId: string }) {
           </Link>
           <h1>{lesson.source.title}</h1>
           <span className="small quiet">
-            {lesson.source.author} · {lesson.source.language}
+            {lesson.source.author} · {languageLabel(lesson.source.language)}
             {lesson.source.is_example ? " · Material de exemplo" : ""}
           </span>
         </div>
@@ -1194,7 +1249,7 @@ export function Study({ sourceId }: { sourceId: string }) {
                             ? String(page * 30 + i + 1).padStart(2, "0")
                             : clock(seg.start_ms)}
                         </span>
-                        <span lang="en">{seg.text}</span>
+                        <span lang={lesson.source.language}>{seg.text}</span>
                       </button>
                       {seg.id === selected?.id && (
                         <div className="segment-support">
@@ -1212,6 +1267,7 @@ export function Study({ sourceId }: { sourceId: string }) {
                               legacyText={seg.translation}
                               loading={busy}
                               aiReady={data.integrations.ai}
+                              language={lesson.source.language}
                             />
                           )}
                           {seg.time_accuracy === "approximate" && (
@@ -1373,7 +1429,7 @@ export function Study({ sourceId }: { sourceId: string }) {
                           draft?.expression === v.expression ? "selected" : ""
                         }
                         onClick={() => setDraft(v)}
-                        lang="en"
+                        lang={lesson.source.language}
                       >
                         {v.expression}
                       </button>
@@ -1382,7 +1438,7 @@ export function Study({ sourceId }: { sourceId: string }) {
                 )}
                 {!draft ? (
                   <div className="expression-preview">
-                    <span lang="en">
+                    <span lang={lesson.source.language}>
                       {unit?.vocabulary?.[0]?.expression ||
                         "Sua próxima expressão"}
                     </span>
@@ -1432,10 +1488,11 @@ export function Study({ sourceId }: { sourceId: string }) {
                     }}
                   >
                     <label>
-                      Expressão em inglês
+                      {`Expressão em ${languageLabel(lesson.source.language)}`}
                       <input
                         required
                         maxLength={180}
+                        lang={lesson.source.language}
                         value={draft.expression}
                         onChange={(e) =>
                           setDraft({ ...draft, expression: e.target.value })
@@ -1454,11 +1511,11 @@ export function Study({ sourceId }: { sourceId: string }) {
                       />
                     </label>
                     <label>
-                      Exemplo em inglês
+                      {`Exemplo em ${languageLabel(lesson.source.language)}`}
                       <textarea
                         required
                         rows={3}
-                        lang="en"
+                        lang={lesson.source.language}
                         value={draft.example}
                         onChange={(e) =>
                           setDraft({ ...draft, example: e.target.value })
@@ -1617,14 +1674,18 @@ export function Study({ sourceId }: { sourceId: string }) {
                   }}
                 >
                   <label>
-                    Sua resposta em inglês
+                    {`Sua resposta em ${languageLabel(lesson.source.language)}`}
                     <textarea
-                      lang="en"
+                      lang={lesson.source.language}
                       required
                       minLength={3}
                       maxLength={8000}
                       rows={6}
-                      placeholder="I would start by…"
+                      placeholder={
+                        isEnglish(lesson.source.language as SupportedLanguage)
+                          ? "I would start by…"
+                          : undefined
+                      }
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
                     />

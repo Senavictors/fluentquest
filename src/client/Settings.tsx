@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { PageHead, Empty, useApp } from "./App";
 import { api, money, date } from "./http";
+import { SUPPORTED_LANGUAGES, LANGUAGE_LABELS } from "./languages";
 export function Journey() {
   const { data } = useApp();
   const p = data.progress;
@@ -300,6 +301,54 @@ export function Preferences() {
           </Link>
         </div>
         <div>
+          <h3>Idioma</h3>
+          <label>
+            Língua de explicação
+            <select
+              value={data.profile.locale}
+              onChange={(e) =>
+                void run(async () => {
+                  await api("profile", "PATCH", {
+                    explanationLanguage: e.target.value,
+                  });
+                  await refresh();
+                })
+              }
+            >
+              {SUPPORTED_LANGUAGES.map((code) => (
+                <option key={code} value={code}>
+                  {LANGUAGE_LABELS[code]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="small quiet">
+            Usada no tutor e no apoio de trecho. O idioma de estudo é
+            escolhido em cada fonte, na Biblioteca.
+          </p>
+          {data.sources.some(
+            (s) => s.language === "en-US" || s.language === "en-GB",
+          ) && (
+            <label>
+              Variedade do inglês
+              <select
+                value={data.profile.englishVariant}
+                onChange={(e) =>
+                  void run(async () => {
+                    await api("profile", "PATCH", {
+                      englishVariant: e.target.value,
+                    });
+                    await refresh();
+                  })
+                }
+              >
+                <option value="en-US">Americano</option>
+                <option value="en-GB">Britânico</option>
+              </select>
+            </label>
+          )}
+        </div>
+        <div>
           <h3>Aparência</h3>
           <div className="theme-options">
             {[
@@ -576,7 +625,6 @@ export function Onboarding() {
     [difficulty, setDifficulty] = useState(data.profile.difficulty),
     [weekly, setWeekly] = useState(data.profile.weeklyGoal),
     [duration, setDuration] = useState(data.profile.sessionMinutes),
-    [variant, setVariant] = useState(data.profile.englishVariant),
     [diagnostic, setDiagnostic] = useState(""),
     [result, setResult] = useState("");
   const options = [
@@ -607,7 +655,6 @@ export function Onboarding() {
               difficulty,
               weeklyGoal: weekly,
               sessionMinutes: duration,
-              englishVariant: variant,
               onboarded: true,
             });
             await refresh();
@@ -673,29 +720,17 @@ export function Onboarding() {
                 </select>
               </label>
             </div>
-            <div className="form-grid">
-              <label>
-                Dificuldade que quer experimentar
-                <select
-                  value={difficulty}
-                  onChange={(e) => setDifficulty(e.target.value)}
-                >
-                  {["A1", "A2", "B1", "B2", "C1"].map((level) => (
-                    <option key={level}>{level}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Variedade preferida
-                <select
-                  value={variant}
-                  onChange={(e) => setVariant(e.target.value)}
-                >
-                  <option value="en-US">Inglês americano</option>
-                  <option value="en-GB">Inglês britânico</option>
-                </select>
-              </label>
-            </div>
+            <label>
+              Dificuldade que quer experimentar
+              <select
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value)}
+              >
+                {["A1", "A2", "B1", "B2", "C1"].map((level) => (
+                  <option key={level}>{level}</option>
+                ))}
+              </select>
+            </label>
             <p className="small quiet">
               Dificuldade escolhida por você. Não é um resultado de diagnóstico.
             </p>
@@ -763,7 +798,8 @@ export function Onboarding() {
         </div>
         <div className="onboarding-footer">
           <span className="quiet">
-            Explicações em português. Prática em inglês.
+            Explicações no idioma que você escolher. Prática no idioma de
+            cada fonte.
           </span>
           <button className="primary" disabled={busy}>
             Salvar e começar <ArrowRight size={18} />

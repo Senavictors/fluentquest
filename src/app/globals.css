@@ -1928,6 +1928,22 @@ label.search {
 .review-progress progress {
   width: 100%;
 }
+/* TASK-015: filtro de idioma da revisão — preferência de tela, mesma linha
+   dos contadores; a barra de progresso continua quebrando para a sua própria
+   linha por causa do width:100% acima. */
+.review-filter {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  width: auto;
+  font-size: 13px;
+}
+.review-filter select {
+  width: auto;
+  min-height: 36px;
+  padding: 6px 10px;
+}
 .review-stage {
   text-align: center;
   padding: 55px 20px 15px;
