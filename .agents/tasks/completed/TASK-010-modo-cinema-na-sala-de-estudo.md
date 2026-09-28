@@ -1,11 +1,11 @@
 ---
 id: TASK-010
 title: Modo cinema na sala de estudo, somente desktop
-status: active
+status: completed
 type: feature
 owner: interface-editorial
 created_at: 2026-09-17
-updated_at: 2026-09-17
+updated_at: 2026-09-28
 affected_modules: [src/client/Study.tsx, src/app/globals.css, DESIGN.md]
 related_use_cases: [assistir acompanhando a transcrição]
 related_adrs: []

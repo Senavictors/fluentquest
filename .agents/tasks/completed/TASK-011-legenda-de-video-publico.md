@@ -1,13 +1,13 @@
 ---
 id: TASK-011
 title: Legenda de vídeo público com proveniência própria
-status: active
+status: completed
 type: feature
 owner: fontes-proveniencia
 affected_modules:
   [src/server/api.ts, src/client/Study.tsx, scripts/integration.ts, docs/API.md]
 created_at: 2026-09-17
-updated_at: 2026-09-17
+updated_at: 2026-09-28
 related_use_cases: [ingestão de legenda autorizada]
 related_adrs: [ADR-004]
 ---
