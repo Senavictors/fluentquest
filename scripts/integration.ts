@@ -34,6 +34,87 @@ const ok = (label: string) => {
   console.log(`PASS ${label}`);
 };
 try {
+  // TASK-017 / ADR-008: primeiro acesso. Precisa vir antes de qualquer
+  // usuário existir, porque a tela só abre num banco sem proprietário.
+  const { handleSetup } = await import("../src/server/setup");
+  const setupOrigin = process.env.BETTER_AUTH_URL || "http://localhost:3215";
+  const setupCall = async (
+    method: string,
+    payload?: unknown,
+    origin: string | null = setupOrigin,
+  ) => {
+    const r = await handleSetup(
+      new Request(`${setupOrigin}/api/setup`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(origin ? { Origin: origin } : {}),
+        },
+        body: payload === undefined ? undefined : JSON.stringify(payload),
+      }),
+    );
+    return { status: r.status, data: await r.json() };
+  };
+  const setupToken = randomBytes(16).toString("hex");
+  const setupPassword = randomBytes(12).toString("hex");
+  const setupBody = {
+    email: "dono@fluentquest.local",
+    password: setupPassword,
+    token: setupToken,
+  };
+  delete process.env.FQ_SETUP_TOKEN;
+  assert.equal((await setupCall("GET")).data.open, false);
+  assert.equal(
+    (await setupCall("POST", setupBody)).data.code,
+    "SETUP_DISABLED",
+  );
+  assert.equal(
+    (await query('SELECT 1 FROM "user" LIMIT 1')).length,
+    0,
+    "sem código configurado, nada é criado",
+  );
+  process.env.FQ_SETUP_TOKEN = setupToken;
+  assert.equal((await setupCall("GET")).data.open, true);
+  assert.equal(
+    (await setupCall("POST", setupBody, "https://outro.exemplo")).data.code,
+    "INVALID_ORIGIN",
+  );
+  assert.equal(
+    (await setupCall("POST", setupBody, null)).data.code,
+    "INVALID_ORIGIN",
+  );
+  assert.equal(
+    (await setupCall("POST", { ...setupBody, token: "errado" })).data.code,
+    "INVALID_SETUP_TOKEN",
+  );
+  assert.equal(
+    (await setupCall("POST", { ...setupBody, password: "curta" })).status,
+    422,
+  );
+  assert.equal(
+    (await query('SELECT 1 FROM "user" LIMIT 1')).length,
+    0,
+    "tentativas inválidas não criam usuário",
+  );
+  const [first, second] = await Promise.all([
+    setupCall("POST", setupBody),
+    setupCall("POST", { ...setupBody, email: "outro@fluentquest.local" }),
+  ]);
+  assert.deepEqual([first.status, second.status].sort(), [201, 409]);
+  assert.equal((await query('SELECT 1 FROM "user"')).length, 1);
+  assert.equal(
+    (await query("SELECT 1 FROM learner_profiles")).length,
+    1,
+    "perfil criado junto",
+  );
+  assert.equal((await setupCall("GET")).data.open, false);
+  assert.equal((await setupCall("POST", setupBody)).data.code, "OWNER_EXISTS");
+  await query("DELETE FROM learner_profiles");
+  await query('DELETE FROM "account"');
+  await query('DELETE FROM "session"');
+  await query('DELETE FROM "user"');
+  delete process.env.FQ_SETUP_TOKEN;
+  ok("Primeiro acesso: só com código, uma única vez, sem corrida");
   const password = randomBytes(20).toString("hex");
   const u = await auth.api.signUpEmail({
     body: {

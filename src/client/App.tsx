@@ -327,7 +327,14 @@ function Login({ onLogin }: { onLogin: () => Promise<void> }) {
   const [email, setEmail] = useState("estudante@fluentquest.local"),
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
-    [pending, setPending] = useState(false);
+    [pending, setPending] = useState(false),
+    [firstAccess, setFirstAccess] = useState(false);
+  useEffect(() => {
+    fetch("/api/setup")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setFirstAccess(d?.open === true))
+      .catch(() => setFirstAccess(false));
+  }, []);
   return (
     <main className="login">
       <section className="login-story">
@@ -351,70 +358,186 @@ function Login({ onLogin }: { onLogin: () => Promise<void> }) {
         </div>
         <span className="small quiet">Aprender · falar · lembrar</span>
       </section>
-      <section className="login-form">
-        <h2>Entre no seu espaço.</h2>
-        <p className="quiet">
-          Sua próxima conversa começa com um pouco de prática.
-        </p>
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setPending(true);
-            setError("");
-            try {
-              const response = await fetch("/api/auth/sign-in/email", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
-              });
-              const data = await response.json();
-              if (!response.ok)
-                throw new Error(
-                  "Não foi possível entrar. Confira seu e-mail e senha.",
-                );
-              await onLogin();
-            } catch (e) {
-              setError(e instanceof Error ? e.message : "Erro de conexão.");
-            } finally {
-              setPending(false);
-            }
-          }}
-        >
-          <label>
-            E-mail
-            <input
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label>
-            Senha
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <p role="alert" className="error-text">
-              {error}
-            </p>
-          )}
-          <button className="primary full" disabled={pending}>
-            {pending ? "Entrando…" : "Entrar"}
-            <ArrowRight size={18} />
-          </button>
-        </form>
-        <p className="small quiet">
-          Acesso pessoal. A conta é criada na configuração local do FluentQuest.
-        </p>
-      </section>
+      {firstAccess ? (
+        <FirstAccess onDone={onLogin} />
+      ) : (
+        <section className="login-form">
+          <h2>Entre no seu espaço.</h2>
+          <p className="quiet">
+            Sua próxima conversa começa com um pouco de prática.
+          </p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setPending(true);
+              setError("");
+              try {
+                const response = await fetch("/api/auth/sign-in/email", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ email, password }),
+                });
+                const data = await response.json();
+                if (!response.ok)
+                  throw new Error(
+                    "Não foi possível entrar. Confira seu e-mail e senha.",
+                  );
+                await onLogin();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Erro de conexão.");
+              } finally {
+                setPending(false);
+              }
+            }}
+          >
+            <label>
+              E-mail
+              <input
+                type="email"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+            <label>
+              Senha
+              <input
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            {error && (
+              <p role="alert" className="error-text">
+                {error}
+              </p>
+            )}
+            <button className="primary full" disabled={pending}>
+              {pending ? "Entrando…" : "Entrar"}
+              <ArrowRight size={18} />
+            </button>
+          </form>
+          <p className="small quiet">
+            Acesso pessoal. A conta é criada na configuração local do
+            FluentQuest.
+          </p>
+        </section>
+      )}
     </main>
+  );
+}
+function FirstAccess({ onDone }: { onDone: () => Promise<void> }) {
+  const [email, setEmail] = useState(""),
+    [password, setPassword] = useState(""),
+    [confirm, setConfirm] = useState(""),
+    [token, setToken] = useState(""),
+    [error, setError] = useState(""),
+    [pending, setPending] = useState(false);
+  return (
+    <section className="login-form">
+      <h2>Primeiro acesso.</h2>
+      <p className="quiet">
+        Crie a conta do proprietário. Ela é a única conta deste FluentQuest e
+        esta tela deixa de existir depois que você a cria.
+      </p>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setError("");
+          if (password !== confirm) {
+            setError("As senhas não são iguais.");
+            return;
+          }
+          setPending(true);
+          try {
+            const created = await fetch("/api/setup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password, token }),
+            });
+            if (!created.ok) {
+              const data = await created.json().catch(() => null);
+              throw new Error(
+                data?.message || "Não foi possível criar a conta.",
+              );
+            }
+            const signedIn = await fetch("/api/auth/sign-in/email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password }),
+            });
+            if (!signedIn.ok)
+              throw new Error(
+                "Conta criada, mas a entrada falhou. Recarregue a página e entre.",
+              );
+            await onDone();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Erro de conexão.");
+          } finally {
+            setPending(false);
+          }
+        }}
+      >
+        <label>
+          E-mail
+          <input
+            type="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </label>
+        <label>
+          Senha (12 caracteres ou mais)
+          <input
+            type="password"
+            autoComplete="new-password"
+            minLength={12}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+        <label>
+          Repita a senha
+          <input
+            type="password"
+            autoComplete="new-password"
+            minLength={12}
+            required
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+        </label>
+        <label>
+          Código de configuração
+          <input
+            type="password"
+            autoComplete="off"
+            required
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+          />
+        </label>
+        {error && (
+          <p role="alert" className="error-text">
+            {error}
+          </p>
+        )}
+        <button className="primary full" disabled={pending}>
+          {pending ? "Criando…" : "Criar conta e entrar"}
+          <ArrowRight size={18} />
+        </button>
+      </form>
+      <p className="small quiet">
+        O código de configuração está na variável FQ_SETUP_TOKEN do serviço no
+        Railway.
+      </p>
+    </section>
   );
 }
 export function PageHead({
