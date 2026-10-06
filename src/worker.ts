@@ -289,8 +289,11 @@ if (process.argv[1]?.replace(/\\/g, "/").endsWith("/worker.ts")) {
     maintaining = true;
     try {
       await maintenance();
-    } catch {
-      console.error("MAINTENANCE_ERROR");
+    } catch (error) {
+      console.error(
+        "MAINTENANCE_ERROR",
+        error instanceof Error ? error.message : String(error),
+      );
     } finally {
       maintaining = false;
     }

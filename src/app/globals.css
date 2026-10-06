@@ -173,7 +173,10 @@ textarea::placeholder {
   color: var(--muted);
   opacity: 1;
 }
-input[type="checkbox"] {
+/* Controles nativos de marcação não herdam a caixa de texto acima
+   (width 100%, 44px de altura): num label em linha, isso empurrava o rótulo. */
+input[type="checkbox"],
+input[type="radio"] {
   width: 18px;
   min-height: 18px;
   height: 18px;

@@ -260,10 +260,12 @@ try {
     // no evento do job, sem descartar a transcrição.
     const mismatchVideo = await request("sources", "POST", {
       ...videoInput,
-      url: "https://youtu.be/abcdefghijp",
+      url: "https://youtu.be/abcdefghijq",
       language: "es-ES",
       transcriptionMode: "ai",
     });
+    // Metadados primeiro: sem duração conhecida, /transcribe recusa a fonte.
+    await prepare(mismatchVideo.data.jobId);
     gemini.transcribeVideo = async () => ({
       language: "en",
       segments: [{ startMs: 0, endMs: 12000, text: "Actually in English." }],
@@ -273,6 +275,7 @@ try {
       "POST",
       { consent: true },
     );
+    assert.equal(mismatchTranscription.status, 202);
     await prepare(mismatchTranscription.data.jobId);
     const mismatchEvents = await query(
       "SELECT data FROM job_events WHERE job_id=$1",
