@@ -1,11 +1,11 @@
 ---
 id: TASK-015
 title: Escolha de idioma na importação, rótulo na biblioteca e filtro na revisão
-status: active
+status: completed
 type: feature
 owner: interface-editorial
 created_at: 2026-09-17
-updated_at: 2026-09-28
+updated_at: 2026-09-30
 affected_modules:
   [
     src/client/Study.tsx,
@@ -62,7 +62,7 @@ Campo de idioma no formulário de importação, com `en-US` pré-selecionado. R�
 - [x] CA-04: `lang` corresponde ao idioma do conteúdo em todos os pontos onde hoje é ternário.
 - [x] CA-05: com um idioma sem conteúdo autoral, a tela declara a ausência de exemplo, cenários e diagnóstico.
 - [x] CA-06: a variedade en-US/en-GB só aparece em contexto de inglês.
-- [ ] CA-07: `node scripts/accessibility-qa.mjs` sem violações, e sem transbordamento em 390×844, claro e escuro.
+- [x] CA-07: `node scripts/accessibility-qa.mjs` sem violações, e sem transbordamento em 390×844, claro e escuro.
 
 ## Impacto técnico
 
@@ -99,7 +99,7 @@ Idioma escolhido é validado no servidor contra a lista fechada — o cliente n�
 - [x] Unitários — não aplicável (tela).
 - [x] Integração — já coberta pelos cenários de TASK-013 (`scripts/integration.ts`): o contrato `POST /api/sources` persistir o `language` enviado já estava testado; esta task só troca o valor fixo `en-US` pela escolha real do formulário, sem mudar o contrato.
 - [ ] E2E — não há suíte.
-- [ ] Manual — **não executado nesta sessão** (ver Pendências): `node scripts/accessibility-qa.mjs` exige servidor web rodando com PostgreSQL acessível e login do proprietário; nenhum dos dois está disponível nesta máquina.
+- [x] Manual — executado em 30/09 (ver Validação complementar); antes: `node scripts/accessibility-qa.mjs` exige servidor web rodando com PostgreSQL acessível e login do proprietário; nenhum dos dois está disponível nesta máquina.
 
 ## Riscos e rollback
 
@@ -146,3 +146,13 @@ Nenhuma em relação ao plano original da task.
 ## Handoff
 
 Task fica em `active/`, não em `completed/`: o código está implementado, com `typecheck`, `test` e `build` verdes, mas a verificação visual e de acessibilidade (CA-07) não pôde ser feita nesta máquina, sem Postgres. Assim que houver banco acessível: `npm run dev`, login do proprietário, testar a importação em pelo menos um idioma não inglês (verificar herança no cartão, rótulo na biblioteca, `lang` correto por inspeção ou leitor de tela), o filtro de revisão com dois idiomas na fila, e rodar `node scripts/accessibility-qa.mjs`. Se tudo passar, mover TASK-013, TASK-014 e TASK-015 para `completed/` juntas — as três dependem da mesma verificação pendente.
+
+## Validação complementar — 2026-09-30
+
+Pendências de CA-07 e de verificação visual resolvidas com Postgres 18.6 local (Docker):
+
+- `npm run build` completo e `scripts/qa-isolated.ts`: browser-qa sem erros nem transbordamento; `accessibility-qa.mjs` com **zero violações em nove telas/estados** (inclui `configuracoes-dark-mobile`); source-qa com zero violações e transbordamentos em claro/escuro × 1440/390.
+- Verificação dirigida no `npm run dev` com proprietário de teste local (credenciais geradas, só em `.env.owner`): fonte `es-ES` importada e rotulada "espanhol (Espanha)" na biblioteca; seletor com 11 entradas e `en` pré-selecionado; variedade do inglês some ao escolher espanhol e o aviso de conteúdo autoral aparece (CA-05/CA-06); cartão criado da fonte sem declarar idioma herdou `es-ES`; sala de estudo com quatro `lang="es-ES"` e nenhum `lang="en"` fixo (CA-04); revisão com filtro "Todos os idiomas / espanhol (Espanha) / inglês (EUA)", fila filtrada para 1, pergunta de produção em `pt-BR` e resposta/expressão/exemplo em `es-ES` (CA-02/CA-03). axe sem violações e sem transbordamento em importação, biblioteca 390 escuro, estudo e revisão 1440/390.
+- `docs/ui/README.md`: regra de composição 9 (`lang` segue o conteúdo) e seção "Idioma na interface".
+
+Achado fora de escopo, anterior a esta task: radios de "Como obter o texto" esticados no formulário de importação (aba YouTube) — não é violação axe; registrado para correção separada. Observação menor, não corrigida: a primeira opção do seletor é "Inglês" com maiúscula e as demais em minúscula ("espanhol (Espanha)"). Task concluída.

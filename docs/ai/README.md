@@ -26,6 +26,10 @@ Não declare nenhuma linha "Não" como resolvida sem a evidência do piloto.
 - **Feedback de fala** — etapa separada da transcrição. **Não existe avaliação fonética nesta versão.**
 - **Tradução editorial** — hoje disponível apenas no material autoral de exemplo.
 
+## Idiomas nos prompts (ADR-006, TASK-014)
+
+Os três prompts que nomeavam idioma — instrução de sistema, apoio de trecho e transcrição de vídeo — recebem por parâmetro o idioma de estudo (da fonte) e a língua de explicação (`learner_profiles.locale`), sempre da lista fechada `SUPPORTED_LANGUAGES` e nunca como texto livre. O rótulo que entra no prompt vem de `LANGUAGE_NAMES` (`src/domain/content.ts`). A instrução de sistema compõe a chave de `result_cache` e a versão de prompt subiu para `fq-v2`, então respostas geradas sob `fq-v1` não são reaproveitadas. Quando o idioma que o provedor detecta na transcrição diverge do declarado na fonte, o job grava `languageMismatch` em `job_events` e a transcrição é mantida. **Qualidade por idioma não tem avaliação humana** — nem para inglês nem para os demais.
+
 ## Limites inegociáveis
 
 1. Função indisponível informa "integração não configurada" — nunca um resultado plausível gerado localmente. (Constituição)

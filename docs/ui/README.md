@@ -29,6 +29,11 @@ Referências dos mockups: **1a** (tela Hoje), **1b** (sala de estudo), **1c** (m
 6. **Avatar usa iniciais e nível**, sem arte figurativa improvisada.
 7. **Foco visível e rótulo textual em todo controle**; atalhos R/T configuráveis pelo proprietário.
 8. **Sem efeitos de impressão que repitam texto acessível** — o título continua legível para leitor de tela.
+9. **`lang` segue o idioma real do conteúdo** (ADR-006, TASK-015): trechos, expressões e exemplos usam o idioma da fonte ou do cartão; texto na língua de explicação usa `profile.locale`. Nenhum `lang="en"` fixo em conteúdo de estudo. Rótulos de idioma vêm de `src/client/languages.ts`, que importa os códigos de `src/domain/content.ts` em vez de manter uma segunda lista.
+
+## Idioma na interface
+
+A importação pergunta o idioma do conteúdo (inglês pré-selecionado); a variedade en-US/en-GB só aparece quando o inglês está em jogo — no formulário e em Preferências, se houver fonte em inglês. Idioma diferente de inglês mostra, uma vez, no formulário, que exemplo, cenários e diagnóstico existem só em inglês. Biblioteca, sala de estudo e revisão mostram o idioma de cada item; a revisão ganha um filtro por idioma quando a fila tem mais de um, como preferência de tela, sem estado no servidor.
 
 ## Acessibilidade
 

@@ -1,14 +1,16 @@
 ---
-estado: planejado
+estado: real
 fonte: package.json, Dockerfile, .railway/railway.ts, scripts/migrate.ts, scripts/setup.ts
-ultima-revisao: 2026-09-19 (TASK-016, ADR-007)
+ultima-revisao: 2026-09-30 (TASK-016, ADR-007)
 ---
 
 # Implantação
 
-## Railway — configuração preparada, ainda não provisionada
+## Railway — provisionado em 21/09, sem proprietário e sem domínio
 
-O proprietário escolheu iniciar com um banco novo e vazio. A configuração versionada declara o repositório `Senavictors/FluentQuest` (`main`), um PostgreSQL gerenciado, o app e um volume inicial de 1 GiB. Nenhum recurso Railway foi criado nesta etapa. O destino precisa ser um projeto dedicado; não selecione o projeto `PhisioFlow`.
+O proprietário escolheu iniciar com um banco novo e vazio. A configuração versionada declara o repositório `Senavictors/FluentQuest` (`main`), um PostgreSQL gerenciado, o app e um volume inicial de 1 GiB. Ela foi aplicada em 21/09 no projeto dedicado `FluentQuest` (região `us-west2`); o projeto `PhisioFlow` da mesma conta não deve ser usado.
+
+Estado conferido em 30/09: app e Postgres 18.6 no ar, sete migrações aplicadas, nenhum usuário, sem domínio e sem proxy TCP. O app roda o commit `49f12eb`, anterior a TASK-013/014/015 — redeploy da `main` pendente. Detalhe e próximos passos em `.agents/tasks/active/TASK-016-preparar-implantacao-railway.md`. Os passos abaixo continuam válidos para recriar o ambiente; os de 5 em diante ainda não foram feitos.
 
 `Dockerfile` instala dependências, gera o build Next.js e mantém as dependências necessárias ao worker. `.dockerignore` exclui arquivos `.env*`, dados locais e diretórios privados do contexto de build. `npm run start:railway` inicia web e worker juntos: o Next escuta em `0.0.0.0` usando `PORT`, e ambos compartilham o volume `/app/data`. O serviço fica com uma réplica porque esse volume e os processos locais de arquivo não foram projetados para múltiplas réplicas.
 
@@ -50,7 +52,9 @@ O backup do PostgreSQL e o do volume são independentes. Configure e verifique o
 
 ## Ambiente local
 
-O ambiente local continua disponível em Windows, com PostgreSQL 18 instalado nativamente. O `.env.local` desta máquina não está presente, então o app local não consegue conectar ao banco até que as credenciais locais sejam recriadas. A estrutura Railway acima não altera esse destino.
+Desde 30/09 o PostgreSQL local roda em Docker, não como serviço do Windows: container `fluentquest-postgres` (`postgres:18`, volume nomeado `fluentquest-pgdata`, `--restart unless-stopped`) publicado só em `127.0.0.1:5433` — a 5432 é do PhisioFlow. `.env.setup` aponta para o superusuário desse container; `npm run setup` criou o banco e o usuário `fluentquest` e gravou `.env.local`. O proprietário local é uma conta de teste cujas credenciais estão só em `.env.owner`. Não há dado de estudo antigo nesse banco.
+
+Sem binários do PostgreSQL no Windows, `PG_BIN` de `.env.local` não aponta para nada: `npm run backup` e `restore` não funcionam até `pg_dump`/`pg_restore` existirem no host ou os scripts passarem a usar o container.
 
 ## Processos/serviços
 
@@ -58,7 +62,7 @@ O ambiente local continua disponível em Windows, com PostgreSQL 18 instalado na
 |---|---|---|---|---|
 | Web | `next dev --hostname 127.0.0.1 --port 3215` (dev) / `next start --hostname 127.0.0.1 --port 3215` (produção local) | 3215 | nenhum — só loopback | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AI_ENABLED`, `DATA_DIR` |
 | Worker | `tsx watch --env-file=.env.local src/worker.ts` (dev) / `tsx --env-file=.env.local src/worker.ts` | — | — | as mesmas, mais `PG_BIN` para manutenção |
-| PostgreSQL | serviço do Windows | 5432 | — | — |
+| PostgreSQL | container Docker `fluentquest-postgres` | 5433 (loopback) | — | — |
 
 `npm run dev` sobe web e worker juntos via `concurrently -k`; `Ctrl+C` encerra os dois.
 

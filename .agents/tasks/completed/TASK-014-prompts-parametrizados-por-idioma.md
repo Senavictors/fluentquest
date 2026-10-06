@@ -1,11 +1,11 @@
 ---
 id: TASK-014
 title: Prompts parametrizados por idioma de estudo e de explicação
-status: active
+status: completed
 type: feature
 owner: ia-orcamento
 created_at: 2026-09-17
-updated_at: 2026-09-28
+updated_at: 2026-09-30
 affected_modules:
   [src/server/providers.ts, src/server/api.ts, src/worker.ts, src/domain/content.ts, docs/API.md, tests/providers.test.ts, tests/domain.test.ts, scripts/integration.ts]
 related_use_cases: [Tutor contextual, Apoio de trecho, Transcrição de vídeo]
@@ -141,3 +141,12 @@ Nenhuma em relação ao plano original da task.
 ## Handoff
 
 Task fica em `active/`, não em `completed/`, pela mesma razão da TASK-013: evidência de integração pendente. Para continuar: obter acesso a um Postgres, rodar `npm run test:integration` (cobre TASK-013 e TASK-014 juntas) e mover as duas para `completed/` se os cenários novos passarem. Depois disso, TASK-015 (escolha de idioma na interface) é a última das três de ADR-006 — depende de TASK-013 e TASK-014 estarem de fato corretas em produção, não só implementadas.
+
+## Validação complementar — 2026-09-30
+
+`npm run test:integration` executado contra Postgres 18.6 local (Docker): **40/40**. O cenário CA-05 falhou nas duas primeiras execuções por defeitos do próprio teste, não do produto, e foi corrigido em `scripts/integration.ts`:
+
+1. Pedia `/transcribe` sem antes rodar o job de metadados da fonte (`prepare(mismatchVideo.data.jobId)`); sem `duration_ms`, a rota recusa na validação de duração, `jobId` voltava indefinido e nenhum evento era gravado. Agora espelha o cenário vizinho e afirma `202` antes de seguir.
+2. Reutilizava o ID de vídeo `abcdefghijp` do cenário "Duração excessiva…"; como a importação é idempotente por vídeo, aquele cenário passou a receber a fonte já transcrita (`TRANSCRIPT_EXISTS` em vez de `VIDEO_TOO_LONG`). Trocado para `abcdefghijq`, livre.
+
+`docs/ai/README.md` ganhou a seção "Idiomas nos prompts" (parâmetros, `fq-v2`, `languageMismatch`, ausência de avaliação humana por idioma). Nenhuma chamada real a provedor. Task concluída.

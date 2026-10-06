@@ -1,7 +1,7 @@
 ---
 estado: real
 fonte: tests/, scripts/integration.ts, scripts/qa-isolated.ts, scripts/source-qa.mjs
-ultima-revisao: 2026-09-17 (TASK-001 a TASK-012)
+ultima-revisao: 2026-09-30 (TASK-013 a TASK-015)
 ---
 
 # Validação e pendências de implementação
@@ -163,3 +163,20 @@ Nenhuma chamada a provedor foi feita nesta validação; salvar uma chave não va
 | Ciclo real na tela             | Chave cadastrada pela interface passou a ser exibida como `cadastrada aqui` com os quatro últimos caracteres; a remoção devolveu a leitura à variável de ambiente e não deixou registro no banco. |
 
 A migração 007 foi aplicada ao banco local do proprietário (`npm run db:migrate`).
+
+## Idioma de estudo — 30/09/2026 (TASK-013, TASK-014, TASK-015)
+
+Primeira execução contra Postgres real desde o fim do banco local antigo. Banco novo: container Docker `fluentquest-postgres` (`postgres:18`, 18.6) em `127.0.0.1:5433`, provisionado por `npm run setup` e `npm run db:migrate`. Nenhuma chamada de IA ou YouTube.
+
+| Verificação                    | Resultado |
+| ------------------------------ | --------- |
+| `npm run typecheck`            | Passou. |
+| `npm test`                     | **71 testes**. |
+| `npm run test:integration`     | **40 cenários**, incluindo os oito novos de idioma (seis da TASK-013, dois da TASK-014). Duas correções no próprio `scripts/integration.ts` antes de passar: o cenário de divergência de idioma (TASK-014 CA-05) pedia transcrição sem antes rodar o job de metadados — sem duração conhecida `/transcribe` recusa — e reutilizava o ID de vídeo `abcdefghijp` do cenário de vídeo longo, que por idempotência recebia a fonte já transcrita (`TRANSCRIPT_EXISTS`). Nenhuma mudança de produto. |
+| `npm run build`                | Passou, quatro rotas. A falha anterior por `.env.local` vazio desapareceu com o ambiente recriado. |
+| `scripts/qa-isolated.ts`       | browser-qa sem erros nem transbordamento; accessibility-qa com **zero violações em nove telas/estados**; source-qa com zero violações e transbordamentos em claro/escuro × 1440/390. |
+| Verificação dirigida TASK-015  | Contra o `npm run dev` local com proprietário de teste: seletor "Idioma do conteúdo" com 11 entradas (inglês único + variantes achatadas), `en` pré-selecionado; variedade do inglês some ao escolher espanhol e o aviso de conteúdo autoral só em inglês aparece; fonte `es-ES` rotulada "espanhol (Espanha)" na biblioteca; sala de estudo com quatro elementos `lang="es-ES"` e nenhum `lang="en"` fixo; cartão criado a partir da fonte sem declarar idioma herdou `es-ES`; revisão com filtro "Todos / espanhol (Espanha) / inglês (EUA)", pergunta de produção em `pt-BR`, campo de resposta, expressão e exemplo revelados em `es-ES`. axe sem violações em importação, biblioteca (1440 e 390 escuro), estudo e revisão (1440 e 390); sem transbordamento. |
+
+Achado fora de escopo, anterior à TASK-015: no formulário de importação (aba YouTube), os radios de "Como obter o texto" renderizavam esticados e centralizados, empurrando os rótulos para a borda direita. Causa: a regra genérica de `input` (`width: 100%`, `min-height: 44px`) valia para radios, e só o checkbox tinha exceção. **Corrigido no mesmo dia** estendendo essa exceção a `input[type="radio"]` em `src/app/globals.css`: radios 18×18 à esquerda em claro/escuro × 1440/390, sem transbordamento, axe sem violações, e `scripts/qa-isolated.ts` novamente verde (nove telas, zero violações).
+
+Uma tentativa anterior no mesmo dia contra o Postgres do Railway por proxy TCP temporário travou na fila (pg-boss) sem mensagem — o handler de erro da fila descarta o detalhe. O proxy foi removido; a causa não foi investigada.

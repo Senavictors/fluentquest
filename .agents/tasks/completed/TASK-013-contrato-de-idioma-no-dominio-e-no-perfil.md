@@ -1,11 +1,11 @@
 ---
 id: TASK-013
 title: Idioma de estudo no contrato do domínio e língua de explicação no perfil
-status: active
+status: completed
 type: feature
 owner: fontes-proveniencia
 created_at: 2026-09-17
-updated_at: 2026-09-28
+updated_at: 2026-09-30
 affected_modules:
   [src/domain/content.ts, src/server/api.ts, docs/API.md, tests/domain.test.ts, scripts/integration.ts]
 related_use_cases: [Importar fonte, Criar cartão, Ajustar perfil]
@@ -136,3 +136,7 @@ Nenhuma em relação ao plano original da task.
 ## Handoff
 
 Task fica em `active/`, não em `completed/`, porque a evidência de integração está pendente (ver Pendências). Para continuar: obter acesso a um Postgres (local, restaurando `.env.setup`, ou o projeto Railway de TASK-016), rodar `npm run test:integration` e, se os seis cenários novos passarem, mover para `completed/` via `bootstrap-complete`. Só depois faz sentido iniciar TASK-014 (prompts parametrizados por idioma), que depende deste contrato.
+
+## Validação complementar — 2026-09-30
+
+Pendência de integração resolvida. Postgres 18.6 local em container Docker (`fluentquest-postgres`, `127.0.0.1:5433`), provisionado por `npm run setup` + `npm run db:migrate`. `npm run test:integration`: **40/40**, incluindo os seis cenários desta task (CA-01 a CA-05, mais a recusa fora da lista). `npm run build` passou por completo com o ambiente recriado. `npm run typecheck` e `npm test` (71/71) repetidos após a correção de fixture em `scripts/integration.ts` (registrada na TASK-014). Evidência em `docs/VALIDACAO.md`, seção "Idioma de estudo — 30/09/2026". Task concluída.
