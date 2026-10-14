@@ -169,6 +169,7 @@ try {
         "scripts/accessibility-qa.mjs",
         "scripts/source-qa.mjs",
         "scripts/song-qa.mjs",
+        "scripts/layout-qa.mjs",
       ];
   for (const script of scripts) {
     const child = spawn(process.execPath, [script], {

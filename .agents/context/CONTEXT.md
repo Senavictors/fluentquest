@@ -137,3 +137,7 @@ TASK-022 concluída, e com ela as cinco tasks do ADR-009 (TASK-018 a 022). Migra
 
 Com autorização do proprietário, o catálogo foi ligado em `.env.local` (`LYRICS_CATALOG_ENABLED=true`) e "Not You Too" importada pela aba "Música" com o vídeo oficial de áudio (`ZX_mvoY_Hg0`): 66 trechos `lyrics_catalog`, e na reprodução real o verso acende no instante do LRC. O LRCLIB respondeu 503 nas duas primeiras buscas (instabilidade passageira; erro honesto, sem nova tentativa). O teste real expôs uma regressão da TASK-022 na faixa empilhada (1001–1239 px): o vídeo colapsava a 0 px numa janela baixa; corrigido (barra da letra numa linha nessa faixa, piso de 240 px). A fonte da música fica no banco local de teste.
 
+## Atualização — 2026-10-14: TASK-023, mais espaço para a transcrição
+
+Pedido do proprietário com print de produção. A barra lateral já recolhia para um trilho de 64 px, mas o botão ficava no rodapé e, numa janela baixa ou com zoom, saía da tela (a barra não rolava). Agora o botão fica no topo, ao lado do logo, e a barra rola. O painel "Expressão / Tutor / Atividade" ganhou um botão que o recolhe para um trilho de 48 px (acima de 1000 px; preferência `fq-panel`; o conteúdo só sai da vista, nada se perde). Em 1366 px a transcrição de um texto sem vídeo vai de 388 para 640 px (barra cheia) ou 532 para 784 px (barra em trilho). QA novo `scripts/layout-qa.mjs`; QA completo verde. **Só aparece em produção depois de um deploy no Railway**, que segue num commit antigo.
+

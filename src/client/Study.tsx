@@ -22,6 +22,8 @@ import {
   ExternalLink,
   Upload,
   Trash2,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 import { PageHead, Empty, useApp } from "./App";
 import { api, clock, HttpError } from "./http";
@@ -1047,7 +1049,9 @@ export function Study({ sourceId }: { sourceId: string }) {
     [followHold, setFollowHold] = useState(false),
     [playingId, setPlayingId] = useState(""),
     [offsetMs, setOffsetMs] = useState(0),
-    [offsetError, setOffsetError] = useState("");
+    [offsetError, setOffsetError] = useState(""),
+    // TASK-023: painel de ferramentas recolhível, lembrado em `fq-panel`.
+    [panelOpen, setPanelOpen] = useState(true);
   const playerRef = useRef<YTPlayer | null>(null),
     lastSaved = useRef(0),
     lastPosition = useRef(0),
@@ -1190,6 +1194,21 @@ export function Study({ sourceId }: { sourceId: string }) {
       setFollow(localStorage.getItem("fq-karaoke") !== "0");
     } catch {
       // Sem armazenamento: acompanhar fica ligado, o padrão.
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      setPanelOpen(localStorage.getItem("fq-panel") !== "0");
+    } catch {
+      // Sem armazenamento: o painel abre expandido, o padrão.
+    }
+  }, []);
+  const applyPanel = useCallback((next: boolean) => {
+    setPanelOpen(next);
+    try {
+      localStorage.setItem("fq-panel", next ? "1" : "0");
+    } catch {
+      // Preferência não persiste, mas a sessão atual respeita a escolha.
     }
   }, []);
   const applyFollow = useCallback((next: boolean) => {
@@ -1367,7 +1386,9 @@ export function Study({ sourceId }: { sourceId: string }) {
       </div>
     );
   return (
-    <div className={`study ${cinema ? "cinema" : ""}`}>
+    <div
+      className={`study ${cinema ? "cinema" : ""} ${panelOpen ? "" : "panel-collapsed"}`}
+    >
       <div className="study-heading">
         <div>
           <Link href="/biblioteca" className="back-link">
@@ -1841,6 +1862,31 @@ export function Study({ sourceId }: { sourceId: string }) {
           </div>
         </section>
         <aside className="study-panel">
+          {/* TASK-023: recolher só tira o painel da vista (`hidden`) — o
+              rascunho, a tentativa e a pergunta ao tutor continuam no DOM e no
+              estado (RN-02). Abaixo de 1001px o painel já fica embaixo do
+              conteúdo, e o CSS remove o controle. */}
+          <button
+            className="panel-toggle"
+            aria-expanded={panelOpen}
+            aria-controls="study-tools"
+            title={
+              panelOpen
+                ? "Recolher as ferramentas e dar a largura à transcrição"
+                : "Mostrar Expressão, Tutor e Atividade"
+            }
+            onClick={() => applyPanel(!panelOpen)}
+          >
+            {panelOpen ? (
+              <PanelRightClose size={17} aria-hidden="true" />
+            ) : (
+              <PanelRightOpen size={17} aria-hidden="true" />
+            )}
+            <span>
+              {panelOpen ? "Recolher ferramentas" : "Ferramentas"}
+            </span>
+          </button>
+          <div id="study-tools" className="study-tools" hidden={!panelOpen}>
           <div
             className="tabs"
             role="tablist"
@@ -2164,6 +2210,7 @@ export function Study({ sourceId }: { sourceId: string }) {
               <br />
               Uma ideia nas suas palavras.
             </span>
+          </div>
           </div>
         </aside>
       </div>

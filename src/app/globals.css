@@ -335,8 +335,18 @@ progress::-webkit-progress-value {
   height: 100dvh;
   position: sticky;
   top: 0;
+  /* TASK-023: numa janela baixa (ou com zoom) o rodapé — orçamento e perfil —
+     não cabia e ficava cortado, sem como chegar até ele. */
+  overflow-y: auto;
 }
-.sidebar > .wordmark {
+/* TASK-023: logo e botão de recolher juntos no topo, sempre à vista. */
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sidebar-head > .wordmark {
   margin-left: 7px;
 }
 /* Barra recolhida: vira trilho de ícones e devolve 144px ao conteúdo, que é
@@ -352,15 +362,19 @@ progress::-webkit-progress-value {
 }
 /* Recolhido, o wordmark vira a marca "F." — cortar "FluentQuest" no meio
    pareceria defeito, não decisão. */
-.app-shell.rail .sidebar > .wordmark {
+.app-shell.rail .sidebar-head {
+  flex-direction: column;
+  gap: 14px;
+}
+.app-shell.rail .sidebar-head > .wordmark {
   margin-left: 0;
   font-size: 0;
 }
-.app-shell.rail .sidebar > .wordmark::before {
+.app-shell.rail .sidebar-head > .wordmark::before {
   content: "F";
   font-size: 22px;
 }
-.app-shell.rail .sidebar > .wordmark span {
+.app-shell.rail .sidebar-head > .wordmark span {
   font-size: 22px;
 }
 .app-shell.rail .sidebar nav {
@@ -373,7 +387,7 @@ progress::-webkit-progress-value {
 }
 .app-shell.rail .nav-item > span,
 .app-shell.rail .profile-link > span:not(.avatar-small),
-.app-shell.rail .rail-toggle > span,
+.rail-toggle > span,
 .app-shell.rail .usage-small > .small-label,
 .app-shell.rail .usage-small > div,
 .app-shell.rail .usage-small > .quiet {
@@ -411,21 +425,18 @@ progress::-webkit-progress-value {
   display: none;
 }
 .rail-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 40px;
-  margin-top: 10px;
-  font-size: 12px;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
   color: var(--muted);
 }
 .rail-toggle:hover:not(:disabled) {
   color: var(--accent);
-}
-.app-shell.rail .rail-toggle {
-  justify-content: center;
-  gap: 0;
 }
 .sidebar nav {
   display: flex;
@@ -1128,6 +1139,10 @@ label.search {
 .study {
   max-width: 1600px;
   margin: auto;
+  /* TASK-023: item de flex em coluna com margem automática encolhe até o
+     próprio conteúdo. Com o painel aberto isso coincidia com a largura toda;
+     recolhido, a sala encolhia e a largura liberada virava margem. */
+  width: 100%;
 }
 .study-heading {
   padding: 27px 32px 23px;
@@ -1441,6 +1456,75 @@ label.search {
 }
 .study-panel .tabs {
   padding: 0 10px;
+}
+/* TASK-023: painel de ferramentas recolhível. Aberto, o controle é só um
+   ícone no canto da linha das abas (as abas cedem o espaço dele); recolhido,
+   a coluna vira um trilho de 48px e a largura vai para a transcrição. O
+   conteúdo recolhido sai com `hidden`, sem desmontar nada. */
+.study-panel {
+  position: relative;
+}
+.study-tools {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+.study-tools[hidden] {
+  display: none;
+}
+.panel-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.panel-toggle:hover {
+  color: var(--accent);
+}
+.panel-toggle > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (min-width: 1001px) {
+  .study-panel .tabs {
+    padding-right: 48px;
+  }
+  .study.panel-collapsed .study-grid {
+    grid-template-columns: minmax(0, 1fr) 48px;
+  }
+  .study.panel-collapsed .study-panel {
+    align-items: center;
+  }
+  .study.panel-collapsed .panel-toggle {
+    position: static;
+    margin-top: 10px;
+  }
+}
+/* Empilhado, o painel já fica abaixo do conteúdo: o controle some e uma
+   preferência de recolher gravada numa janela larga não esconde nada. */
+@media (max-width: 1000px) {
+  .panel-toggle {
+    display: none;
+  }
+  .study-tools[hidden] {
+    display: flex;
+  }
 }
 .panel-body {
   padding: 29px 25px;
@@ -2814,7 +2898,7 @@ code {
     background: var(--paper);
     padding: 20px;
   }
-  .sidebar.mobile-open > .wordmark,
+  .sidebar.mobile-open > .sidebar-head,
   .sidebar.mobile-open > nav {
     display: none;
   }

@@ -185,9 +185,27 @@ export function App() {
           </button>
         </header>
         <aside className={`sidebar ${menu ? "mobile-open" : ""}`}>
-          <Link href="/" className="wordmark">
-            FluentQuest<span>.</span>
-          </Link>
+          {/* TASK-023: o botão mora no topo, junto do logo. No rodapé ele
+              ficava abaixo do orçamento e do perfil e, numa janela baixa ou
+              com zoom, saía da tela — a opção existia, mas não se via. */}
+          <div className="sidebar-head">
+            <Link href="/" className="wordmark">
+              FluentQuest<span>.</span>
+            </Link>
+            <button
+              className="text-button rail-toggle"
+              onClick={toggleRail}
+              aria-pressed={rail}
+              title={rail ? "Expandir a barra lateral" : "Recolher a barra lateral"}
+            >
+              {rail ? (
+                <PanelLeftOpen size={18} />
+              ) : (
+                <PanelLeftClose size={18} />
+              )}
+              <span>Recolher a barra lateral</span>
+            </button>
+          </div>
           <nav aria-label="Navegação principal">
             {nav.map(({ href, label, Icon }) => {
               const active =
@@ -237,19 +255,6 @@ export function App() {
               </span>
               <Settings size={17} />
             </Link>
-            <button
-              className="text-button rail-toggle"
-              onClick={toggleRail}
-              aria-pressed={rail}
-              title={rail ? "Expandir a barra" : "Recolher a barra"}
-            >
-              {rail ? (
-                <PanelLeftOpen size={17} />
-              ) : (
-                <PanelLeftClose size={17} />
-              )}
-              <span>{rail ? "Expandir" : "Recolher"}</span>
-            </button>
           </div>
         </aside>
         <main id="main" className={`main ${isStudy ? "study-main" : ""}`}>

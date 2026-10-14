@@ -35,6 +35,14 @@ Referências dos mockups: **1a** (tela Hoje), **1b** (sala de estudo), **1c** (m
 
 A importação pergunta o idioma do conteúdo (inglês pré-selecionado); a variedade en-US/en-GB só aparece quando o inglês está em jogo — no formulário e em Preferências, se houver fonte em inglês. Idioma diferente de inglês mostra, uma vez, no formulário, que exemplo, cenários e diagnóstico existem só em inglês. Biblioteca, sala de estudo e revisão mostram o idioma de cada item; a revisão ganha um filtro por idioma quando a fila tem mais de um, como preferência de tela, sem estado no servidor.
 
+## Espaço para a transcrição (TASK-023)
+
+- **Barra lateral recolhível**: o botão fica no topo, ao lado do logo (ícone, com nome acessível "Recolher a barra lateral" e `aria-pressed`), e leva a barra a um trilho de ícones de 64 px; preferência em `localStorage` `fq-rail`. Até 2026-10-14 o botão morava no rodapé, depois do orçamento e do perfil, e a barra (`height: 100dvh`) não rolava — numa janela baixa ou com zoom ele saía da tela. Agora a barra também rola quando o conteúdo não cabe.
+- **Painel de ferramentas recolhível** (Expressão / Tutor / Atividade), acima de 1000 px: ícone no canto da linha das abas (`aria-expanded`, `aria-controls="study-tools"`); recolhido, vira um trilho de 48 px com o botão de reabrir e a largura vai para a transcrição — em 1366 px, 532 → 784 px num texto sem vídeo, somando ao trilho da barra. O conteúdo só sai da vista (`hidden`): rascunho de cartão, tentativa e pergunta ao tutor continuam lá. Preferência em `fq-panel`. Abaixo de 1001 px o painel já fica embaixo do conteúdo, o controle não existe e uma preferência de recolher não esconde nada.
+- `.study` tem `width: 100%`: como item de flex em coluna com `margin: auto`, ela encolhia até o próprio conteúdo quando o painel saía, e a largura liberada virava margem.
+
+QA: `scripts/layout-qa.mjs`, rodado por `qa-isolated.ts` — botão da barra visível em 1366×650, 1280×560 e 1920×946; ganho de largura da transcrição; persistência; rascunho preservado; axe e overflow com painel e barra recolhidos (1440, claro/escuro) e no celular.
+
 ## Música (TASK-021, ADR-009)
 
 A importação tem uma quarta aba, **Música**. Ela é só estado de tela: a fonte gravada é `text` (só letra) ou `youtube` (letra + clipe). Título e autor não são digitados — vêm do catálogo. Fluxo: buscar (debounce de 450 ms, uma requisição por vez, a anterior cancelada) → escolher a versão → opcionalmente colar o link do clipe oficial → idioma → importar.
