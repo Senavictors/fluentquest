@@ -11,6 +11,7 @@ Mantido automaticamente por `bootstrap-audit` a cada execução — não edite e
 | ADR-005 | Chaves de provedor cadastráveis pela interface, cifradas no banco, com o ambiente como fallback       | accepted | 2026-09-17 | [ADR-005-chaves-de-api-cifradas-no-banco.md](ADR-005-chaves-de-api-cifradas-no-banco.md)                                     |
 | ADR-006 | O idioma de estudo é propriedade da fonte, não do perfil; o perfil guarda só a língua de explicação   | accepted | 2026-09-17 | [ADR-006-idioma-de-estudo-vem-da-fonte.md](ADR-006-idioma-de-estudo-vem-da-fonte.md)                                         |
 | ADR-008 | Primeiro acesso pela tela, protegido por código de configuração e fechado depois do proprietário     | accepted | 2026-10-05 | [ADR-008-primeiro-acesso-com-codigo-de-configuracao.md](ADR-008-primeiro-acesso-com-codigo-de-configuracao.md)               |
+| ADR-009 | Letras de música vêm do LRCLIB por host fixo, com proveniência própria e tempo aproximado            | accepted | 2026-10-14 | [ADR-009-letras-de-musica-via-lrclib.md](ADR-009-letras-de-musica-via-lrclib.md)                                             |
 
 <!-- bootstrap-audit preenche uma linha por arquivo em .agents/decisions/*.md, lendo o frontmatter (id, title, status, date). Não remova este comentário — é o marcador de onde a regeneração insere as linhas. -->
 

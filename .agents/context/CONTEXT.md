@@ -1,6 +1,6 @@
 # Contexto Atual do Projeto — FluentQuest
 
-Última atualização: 2026-09-30
+Última atualização: 2026-10-14
 
 ## Estado atual
 
@@ -108,3 +108,11 @@ Com o banco, `npm run test:integration` passou **40/40** depois de duas correç�
 ## Atualização — 2026-10-14: estudar músicas (planejamento)
 
 O proprietário pediu a opção de estudar músicas. Hoje uma letra só entra colada como "Material próprio" (ex.: `Drake - Not You Too`, 67 trechos sem tempo) — proveniência falsa e sem sincronia. Levantamento de APIs: Spotify não tem endpoint de letra; Musixmatch não tem mais plano gratuito (US$ 49/mês); Genius e Letras.mus.br exigiriam scraping; **LRCLIB** é gratuito, sem chave e entrega LRC sincronizado. **ADR-009 (`proposed`)** propõe LRCLIB por host fixo, com origem `lyrics_catalog` e tempo `approximate`. Cinco tasks em `backlog/`, nesta ordem: TASK-018 (LRC no domínio, sem rede) → TASK-019 (adaptador e busca) → TASK-020 (fonte com atribuição, migração 008) → TASK-021 (aba "Música") → TASK-022 (modo karaokê). **Nada foi implementado.** Pergunta aberta no ADR-009: valor de `rights` para letra de terceiros.
+
+## Atualização — 2026-10-14: TASK-018, LRC no domínio
+
+ADR-009 passou a `accepted` com o aval do proprietário. TASK-018 concluída: `parseContent` reconhece LRC (duas linhas com marca `[mm:ss.xx]` no início e nenhum `-->`) e devolve um trecho por marca, com `startMs` declarado, `endMs` no próximo instante (pausa instrumental encerra o verso anterior, `[length:]` fecha o último), `[offset:]` aplicado e `timeAccuracy: "approximate"`. Marcas por palavra saem do texto; verso acima de 1.200 caracteres é recusado em vez de fatiado. O formulário "Texto ou legenda" aceita `.lrc`. Sem rede, sem migração. `typecheck`, `npm test` (79/79), `test:integration` (42/42) e `accessibility-qa` (zero violações nas 9 rotas) verdes.
+
+Ambiente local recriado nesta data: o container `fluentquest-postgres`, os três `.env` e `node_modules` não existiam. Banco novo e vazio, proprietário de teste `estudante@fluentquest.local`, container **sem** reinício automático (`docker start fluentquest-postgres`). Detalhe em `docs/architecture/deployment.md`.
+
+Achado fora de escopo: `scripts/source-qa.mjs` (rodado por `qa-isolated.ts`) falha com violações axe que estão todas dentro do iframe do player do YouTube (marcação de terceiros). Precisa de decisão do proprietário; registrado em TASK-018. Próxima: TASK-019 (adaptador LRCLIB e busca).

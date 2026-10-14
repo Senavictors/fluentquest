@@ -632,6 +632,40 @@ try {
     "en-US",
   );
   ok("Requisição sem language continua resultando em en-US (CA-05)");
+  // TASK-018 / ADR-009: `.lrc` colado em "Texto ou legenda" entra com tempo
+  // declarado e aproximado. Letra autoral, escrita para o teste.
+  const lrcSource = await request("sources", "POST", {
+    kind: "text",
+    title: "Fixture LRC",
+    text: "[ti:Green Build]\n[00:01.50] The build is green again\n[00:04.00]\n[00:06.25] Ship it before lunch",
+    rights: "owned",
+    consent: true,
+  });
+  assert.equal(lrcSource.status, 202);
+  const lrcRows = await query<{
+    start_ms: number;
+    end_ms: number | null;
+    text: string;
+    time_accuracy: string;
+  }>(
+    "SELECT start_ms,end_ms,text,time_accuracy FROM segments WHERE source_id=$1 ORDER BY ordinal",
+    [lrcSource.data.sourceId],
+  );
+  assert.deepEqual(
+    lrcRows.map((row) => [
+      row.start_ms,
+      row.end_ms,
+      row.text,
+      row.time_accuracy,
+    ]),
+    [
+      [1500, 4000, "The build is green again", "approximate"],
+      [6250, null, "Ship it before lunch", "approximate"],
+    ],
+  );
+  ok(
+    "LRC importado como texto grava tempo aproximado, sem metadado nem pausa (TASK-018)",
+  );
   await request("profile", "PATCH", { explanationLanguage: "es-ES" });
   assert.equal((await request("bootstrap")).data.profile.locale, "es-ES");
   await request("profile", "PATCH", { explanationLanguage: "pt-BR" });

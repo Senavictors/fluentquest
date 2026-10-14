@@ -468,15 +468,15 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
                 required={kind === "text"}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Cole seu texto, uma legenda SRT ou VTT…"
+                placeholder="Cole seu texto, uma legenda SRT ou VTT, ou uma letra LRC…"
                 maxLength={500000}
               />
             </label>
             <label className="file-label">
-              <Upload size={16} /> Carregar TXT, SRT ou VTT
+              <Upload size={16} /> Carregar TXT, SRT, VTT ou LRC
               <input
                 type="file"
-                accept=".txt,.srt,.vtt"
+                accept=".txt,.srt,.vtt,.lrc"
                 onChange={async (e) => {
                   const f = e.target.files?.[0];
                   if (f) {

@@ -56,6 +56,8 @@ O backup do PostgreSQL e o do volume são independentes. Configure e verifique o
 
 Desde 30/09 o PostgreSQL local roda em Docker, não como serviço do Windows: container `fluentquest-postgres` (`postgres:18`, volume nomeado `fluentquest-pgdata`, `--restart unless-stopped`) publicado só em `127.0.0.1:5433` — a 5432 é do PhisioFlow. `.env.setup` aponta para o superusuário desse container; `npm run setup` criou o banco e o usuário `fluentquest` e gravou `.env.local`. O proprietário local é uma conta de teste cujas credenciais estão só em `.env.owner`. Não há dado de estudo antigo nesse banco.
 
+Em 14/10/2026 o container e os três `.env` não existiam mais nesta máquina e foram recriados do zero (banco vazio, mesmo nome, porta e volume). Diferença: o container novo **não** tem política de reinício — depois de reiniciar o Docker, rode `docker start fluentquest-postgres`. O proprietário de teste usa `estudante@fluentquest.local`, o e-mail que a tela de login pré-preenche e do qual `scripts/accessibility-qa.mjs` depende.
+
 Sem binários do PostgreSQL no Windows, `PG_BIN` de `.env.local` não aponta para nada: `npm run backup` e `restore` não funcionam até `pg_dump`/`pg_restore` existirem no host ou os scripts passarem a usar o container.
 
 ## Processos/serviços

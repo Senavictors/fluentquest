@@ -110,6 +110,107 @@ function time(value: string) {
     );
   return Math.round(pieces.reduce((n, part) => n * 60 + part, 0) * 1000);
 }
+// TASK-018 / ADR-009: LRC, o formato de letra sincronizada do LRCLIB. Uma
+// linha por verso, prefixada pelo instante em que ele começa. A fração aceita
+// `.` ou `:` (`[00:17.12]` e `[00:17:12]` circulam), então `time()` não serve:
+// leria o segundo caso como hh:mm:ss.
+const LRC_STAMP = String.raw`\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]`;
+const LRC_LINE = new RegExp(`^${LRC_STAMP}`);
+const LRC_STAMPS = new RegExp(`^((?:${LRC_STAMP}\\s*)+)(.*)$`);
+const LRC_WORD_STAMP = /<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>/g;
+const LRC_META = /^\[([a-z]+):([^\]]*)\]$/i;
+function lrcTime(value: string) {
+  const match = /^(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?$/.exec(value.trim());
+  if (!match || Number(match[2]) >= 60)
+    throw new AppError(
+      "INVALID_CAPTION",
+      "Marca de tempo fora do intervalo permitido na letra.",
+    );
+  // A fração é decimal: `.1` é 100 ms, `.12` é 120 ms, `.123` é 123 ms.
+  const fraction = match[3] ? Number(`0.${match[3]}`) : 0;
+  return Math.round(
+    (Number(match[1]) * 60 + Number(match[2]) + fraction) * 1000,
+  );
+}
+// RN-01: duas linhas com marca de tempo no início e nenhum `-->`. Uma linha
+// só não basta — prosa com um "[00:10]" eventual não é letra sincronizada.
+function looksLikeLrc(clean: string) {
+  if (clean.includes("-->")) return false;
+  let hits = 0;
+  for (const line of clean.split("\n"))
+    if (LRC_LINE.test(line.trim()) && ++hits >= 2) return true;
+  return false;
+}
+function parseLrc(clean: string): SegmentInput[] {
+  let offsetMs = 0;
+  let lengthMs: number | null = null;
+  const events: { startMs: number; text: string }[] = [];
+  for (const raw of clean.split("\n")) {
+    const line = raw.trim();
+    const timed = LRC_STAMPS.exec(line);
+    if (timed) {
+      // RN-07: marcas por palavra saem do texto nesta versão.
+      const text = timed[2]
+        .replace(LRC_WORD_STAMP, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      // RN-04: uma linha com várias marcas vira um evento por marca.
+      for (const stamp of timed[1].match(/\[[^\]]+\]/g)!)
+        events.push({ startMs: lrcTime(stamp.slice(1, -1)), text });
+      continue;
+    }
+    // RN-05: metadado não vira trecho; só offset e length mudam o resultado.
+    const meta = LRC_META.exec(line);
+    if (!meta) continue;
+    const tag = meta[1].toLowerCase();
+    if (tag === "offset" && /^\s*[+-]?\d+\s*$/.test(meta[2]))
+      offsetMs = Number(meta[2]);
+    else if (tag === "length") {
+      try {
+        lengthMs = lrcTime(meta[2]);
+      } catch {
+        // `length` malformado é só metadado ruim; a última linha fica sem fim.
+      }
+    }
+  }
+  // Positivo adianta a letra (convenção do formato): o verso aparece antes.
+  const shift = (ms: number) => Math.max(0, ms - offsetMs);
+  // Ordenação estável: versos com o mesmo instante mantêm a ordem do arquivo.
+  const ordered = events
+    .map((event) => ({ ...event, startMs: shift(event.startMs) }))
+    .sort((a, b) => a.startMs - b.startMs);
+  const segments: SegmentInput[] = [];
+  ordered.forEach((event, index) => {
+    // RN-06: pausa instrumental não vira trecho, mas encerra o anterior.
+    if (!event.text) return;
+    if (event.text.length > 1200)
+      throw new AppError(
+        "INVALID_CAPTION",
+        "Um verso da letra passa de 1.200 caracteres.",
+      );
+    // RN-02: o fim de um verso é, por definição do formato, o início do
+    // próximo instante declarado — não é interpolação.
+    const next = ordered
+      .slice(index + 1)
+      .find((other) => other.startMs > event.startMs);
+    const endMs =
+      next?.startMs ??
+      (lengthMs !== null && lengthMs > event.startMs ? lengthMs : null);
+    // RN-03: tempo de comunidade, não alinhamento acústico.
+    segments.push({
+      startMs: event.startMs,
+      endMs,
+      text: event.text,
+      timeAccuracy: "approximate",
+    });
+  });
+  if (!segments.length || segments.length > 10000)
+    throw new AppError(
+      "INVALID_CAPTION",
+      "A letra não contém versos com texto ou excede o limite.",
+    );
+  return segments;
+}
 export function parseContent(input: string): SegmentInput[] {
   if (input.length > 500_000)
     throw new AppError(
@@ -125,6 +226,7 @@ export function parseContent(input: string): SegmentInput[] {
       "EMPTY_CONTENT",
       "Adicione texto ou uma legenda para estudar.",
     );
+  if (looksLikeLrc(clean)) return parseLrc(clean);
   if (!clean.includes("-->"))
     return clean
       .split(/\n\s*\n|\n/)

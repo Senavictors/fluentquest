@@ -1,7 +1,7 @@
 ---
 id: ADR-009
 title: Letras de música vêm do LRCLIB por host fixo, com proveniência própria e tempo aproximado
-status: proposed
+status: accepted
 date: 2026-10-14
 deciders: [Senavictors]
 related_tasks: [TASK-018, TASK-019, TASK-020, TASK-021, TASK-022]

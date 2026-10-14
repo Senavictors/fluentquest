@@ -51,6 +51,128 @@ describe("Fontes e proveniência", () => {
     ])
       expect(() => parseContent(value)).toThrow();
   });
+  // TASK-018 / ADR-009. Letras autorais, escritas para o teste — nunca letra
+  // real protegida.
+  it("lê LRC com início declarado e fim no próximo verso, tempo aproximado (CA-01)", () => {
+    expect(
+      parseContent(
+        "[00:01.50] The build is green again\n[00:04.25] Ship it before lunch\n[00:07.1] Nobody touch the cache",
+      ),
+    ).toEqual([
+      {
+        startMs: 1500,
+        endMs: 4250,
+        text: "The build is green again",
+        timeAccuracy: "approximate",
+      },
+      {
+        startMs: 4250,
+        endMs: 7100,
+        text: "Ship it before lunch",
+        timeAccuracy: "approximate",
+      },
+      {
+        startMs: 7100,
+        endMs: null,
+        text: "Nobody touch the cache",
+        timeAccuracy: "approximate",
+      },
+    ]);
+  });
+  it("aceita fração com dois-pontos e milissegundos sem ler como hh:mm:ss", () => {
+    const [first, second] = parseContent(
+      "[01:02:30] Merge conflict blues\n[01:05.125] Rebase and pray",
+    );
+    expect(first.startMs).toBe(62300);
+    expect(second.startMs).toBe(65125);
+  });
+  it("ignora metadados, aplica offset e fecha a última linha com length (CA-02)", () => {
+    const segments = parseContent(
+      [
+        "[ti:Deploy Friday]",
+        "[ar:The Linters]",
+        "[al:Green Builds]",
+        "[by:fixture]",
+        "[re:editor]",
+        "[ve:1.0]",
+        "[length:00:12.00]",
+        "[offset:+500]",
+        "[00:02.00] Deploy on a Friday",
+        "[00:06.00] Pager on my pillow",
+      ].join("\n"),
+    );
+    expect(segments.map((s) => s.text)).toEqual([
+      "Deploy on a Friday",
+      "Pager on my pillow",
+    ]);
+    // Offset positivo adianta a letra: 2000 − 500 e 6000 − 500.
+    expect(segments.map((s) => [s.startMs, s.endMs])).toEqual([
+      [1500, 5500],
+      [5500, 12000],
+    ]);
+    expect(
+      parseContent(
+        "[offset:-250]\n[00:01.00] Late by a beat\n[00:02.00] Still on time",
+      )[0].startMs,
+    ).toBe(1250);
+  });
+  it("gera um trecho por marca numa linha com várias marcas, ordenado (CA-03)", () => {
+    const segments = parseContent(
+      "[00:01.00][00:09.00] Rollback, rollback\n[00:05.00] Hotfix in the night\n[00:13.00]",
+    );
+    expect(segments.map((s) => [s.startMs, s.endMs, s.text])).toEqual([
+      [1000, 5000, "Rollback, rollback"],
+      [5000, 9000, "Hotfix in the night"],
+      [9000, 13000, "Rollback, rollback"],
+    ]);
+  });
+  it("pausa instrumental não vira trecho mas encerra o anterior; marca por palavra sai do texto", () => {
+    const segments = parseContent(
+      "[00:01.00] <00:01.00>Tests <00:01.40>are <00:01.80>passing\n[00:03.00]\n[00:08.00] Back to the chorus",
+    );
+    expect(segments).toHaveLength(2);
+    expect(segments[0]).toMatchObject({
+      startMs: 1000,
+      endMs: 3000,
+      text: "Tests are passing",
+    });
+    expect(segments[1]).toMatchObject({ startMs: 8000, endMs: null });
+  });
+  it("recusa LRC sem versos, verso gigante e segundo fora do intervalo", () => {
+    for (const value of [
+      "[00:01.00]\n[00:02.00]",
+      `[00:01.00] ${"a".repeat(1201)}\n[00:02.00] fim`,
+      "[00:61.00] Too many seconds\n[00:62.00] Still wrong",
+    ])
+      expect(() => parseContent(value)).toThrow();
+  });
+  it("SRT, VTT e texto simples não mudam com a leitura de LRC (CA-04)", () => {
+    expect(
+      parseContent(
+        "WEBVTT\n\n00:00:01.000 --> 00:00:02.500\n<v Ana>Hello [00:01.00] there\n\n00:00:03.000 --> 00:00:04.000\n[00:03.00] Second",
+      ).map((s) => [s.startMs, s.endMs, s.text]),
+    ).toEqual([
+      [1000, 2500, "Hello [00:01.00] there"],
+      [3000, 4000, "[00:03.00] Second"],
+    ]);
+    expect(parseContent("First line.\nSecond line.")).toEqual([
+      { startMs: null, endMs: null, text: "First line.", timeAccuracy: "none" },
+      {
+        startMs: null,
+        endMs: null,
+        text: "Second line.",
+        timeAccuracy: "none",
+      },
+    ]);
+  });
+  it("prosa com colchete eventual não é tratada como LRC (CA-05)", () => {
+    for (const value of [
+      "He wrote it wrong [sic] and shipped it.\n[Chorus] is not a timestamp.",
+      "[00:10] A single timestamp in prose.\nThe rest is plain text.",
+    ])
+      for (const segment of parseContent(value))
+        expect(segment).toMatchObject({ startMs: null, timeAccuracy: "none" });
+  });
   it("deduplica expressão sem fundir sentidos diferentes", () => {
     expect(normalize("  Under   LOAD ", "en-US")).toBe("under load");
     expect(normalize("carga de trabalho", "pt-BR")).not.toBe(
