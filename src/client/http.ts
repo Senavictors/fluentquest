@@ -3,6 +3,8 @@ export class HttpError extends Error {
     message: string,
     public code: string,
     public status: number,
+    // Campos extras do corpo de erro, como o `sourceId` de SOURCE_EXISTS.
+    public details: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -30,6 +32,7 @@ export async function api<T = Record<string, unknown>>(
       result.message || "Não foi possível concluir.",
       result.code,
       response.status,
+      result,
     );
   return result;
 }

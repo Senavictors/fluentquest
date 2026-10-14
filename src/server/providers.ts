@@ -176,6 +176,9 @@ export const integrationStatus = () => {
     gemini: gemini.ready,
     openai: openai.ready,
     youtube: !!credential("youtube"),
+    // TASK-021 / ADR-009: a aba "Música" explica o catálogo desligado antes
+    // de qualquer busca.
+    lyrics: lyricsCatalogEnabled(),
     videoModel: process.env.GEMINI_VIDEO_MODEL || gemini.model,
     enabled: process.env.AI_ENABLED === "true",
     keys: credentialStates(),

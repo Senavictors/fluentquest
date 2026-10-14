@@ -18,6 +18,8 @@ import {
   lyricsImportInput,
   lyricsSegments,
   LYRICS_RIGHTS,
+  songDuration,
+  lyricsSegmentLabel,
 } from "../src/domain/content";
 import { initialCard, scheduleCard, xpLevel } from "../src/domain/review";
 import { tokenCostMicros, budgetPeriod } from "../src/server/budget";
@@ -578,5 +580,25 @@ describe("Música como fonte (TASK-020)", () => {
       expect(() => lyricsSegments(lyricsRecord.parse(record))).toThrow(
         expect.objectContaining({ code: "LYRICS_EMPTY" }),
       );
+  });
+});
+
+describe("Aba Música (TASK-021)", () => {
+  it("formata duração de faixa como m:ss, arredondando ao segundo", () => {
+    expect(songDuration(270000)).toBe("4:30");
+    expect(songDuration(183400)).toBe("3:03");
+    expect(songDuration(59600)).toBe("1:00");
+    expect(songDuration(5000)).toBe("0:05");
+    expect(songDuration(3723000)).toBe("62:03");
+    expect(songDuration(null)).toBeNull();
+    expect(songDuration(-1)).toBeNull();
+  });
+  it("rótulo de letra nunca fala em tempo quando a letra entrou sem sincronia (RN-03)", () => {
+    expect(lyricsSegmentLabel("approximate")).toBe(
+      "Letra da comunidade (LRCLIB), não revisada · tempo aproximado",
+    );
+    expect(lyricsSegmentLabel("none")).toBe(
+      "Letra da comunidade (LRCLIB), não revisada · sem tempo",
+    );
   });
 });

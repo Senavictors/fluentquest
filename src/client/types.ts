@@ -16,6 +16,9 @@ export interface Source {
   transcript_reviewed?: boolean;
   segment_count?: number;
   file_key?: string;
+  // TASK-020 / ADR-009: atribuição de letra do catálogo.
+  catalog_provider?: string | null;
+  catalog_id?: string | null;
 }
 export interface TranscriptionEstimate {
   available: boolean;
@@ -143,6 +146,7 @@ export interface Integrations {
   ai: boolean;
   provider: "gemini" | "openai";
   youtube: boolean;
+  lyrics: boolean;
   gemini: boolean;
   openai: boolean;
   message: string;
@@ -170,4 +174,15 @@ export interface ReviewCard {
   version: number;
   source_title: string | null;
   fsrs_state: Record<string, unknown>;
+}
+// TASK-019: resumo de um resultado de `GET /api/lyrics/search`.
+export interface LyricsResult {
+  id: number;
+  title: string;
+  artist: string;
+  album: string | null;
+  durationMs: number | null;
+  instrumental: boolean;
+  hasSynced: boolean;
+  hasPlain: boolean;
 }

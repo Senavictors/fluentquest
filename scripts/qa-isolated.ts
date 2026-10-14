@@ -4,6 +4,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
 import { once } from "node:events";
+import { pathToFileURL } from "node:url";
 import pg from "pg";
 
 // Refuse to replace a running app. All learning data below belongs to a disposable DB.
@@ -124,6 +125,15 @@ try {
     [owner.user.id],
   );
   process.env.FQ_OWNER_SETUP = "false";
+  // TASK-021 / ADR-009: o servidor de QA tem o catálogo de letras ligado, mas
+  // com `fetch` para lrclib.net respondido por scripts/qa-lrclib-fixture.mjs —
+  // nenhuma chamada real sai daqui. Só o processo do servidor recebe isso.
+  const serverEnv = {
+    ...process.env,
+    LYRICS_CATALOG_ENABLED: "true",
+    NODE_OPTIONS:
+      `${process.env.NODE_OPTIONS ?? ""} --import=${pathToFileURL("scripts/qa-lrclib-fixture.mjs").href}`.trim(),
+  };
   server = spawn(
     process.execPath,
     [
@@ -134,7 +144,7 @@ try {
       "--port",
       "3215",
     ],
-    { env: process.env, stdio: "ignore", windowsHide: true },
+    { env: serverEnv, stdio: "ignore", windowsHide: true },
   );
   for (let i = 0; i < 100; i++) {
     if (server.exitCode !== null)
@@ -158,6 +168,7 @@ try {
         "scripts/browser-qa.mjs",
         "scripts/accessibility-qa.mjs",
         "scripts/source-qa.mjs",
+        "scripts/song-qa.mjs",
       ];
   for (const script of scripts) {
     const child = spawn(process.execPath, [script], {

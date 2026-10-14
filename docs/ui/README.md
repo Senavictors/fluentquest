@@ -13,7 +13,7 @@ Referências dos mockups: **1a** (tela Hoje), **1b** (sala de estudo), **1c** (m
 | Tela | Arquivo | Linhas |
 |---|---|---|
 | Casca, navegação e Hoje | `src/client/App.tsx` | 650 |
-| Biblioteca e sala de estudo | `src/client/Study.tsx` | 1340 |
+| Biblioteca e sala de estudo | `src/client/Study.tsx` | 1982 |
 | Produção, prática e gravação | `src/client/Practice.tsx` | 721 |
 | Perfil, preferências e conta | `src/client/Settings.tsx` | 656 |
 
@@ -35,9 +35,22 @@ Referências dos mockups: **1a** (tela Hoje), **1b** (sala de estudo), **1c** (m
 
 A importação pergunta o idioma do conteúdo (inglês pré-selecionado); a variedade en-US/en-GB só aparece quando o inglês está em jogo — no formulário e em Preferências, se houver fonte em inglês. Idioma diferente de inglês mostra, uma vez, no formulário, que exemplo, cenários e diagnóstico existem só em inglês. Biblioteca, sala de estudo e revisão mostram o idioma de cada item; a revisão ganha um filtro por idioma quando a fila tem mais de um, como preferência de tela, sem estado no servidor.
 
+## Música (TASK-021, ADR-009)
+
+A importação tem uma quarta aba, **Música**. Ela é só estado de tela: a fonte gravada é `text` (só letra) ou `youtube` (letra + clipe). Título e autor não são digitados — vêm do catálogo. Fluxo: buscar (debounce de 450 ms, uma requisição por vez, a anterior cancelada) → escolher a versão → opcionalmente colar o link do clipe oficial → idioma → importar.
+
+- Resultados são **radios nativos num `fieldset`** ("Escolha a versão da letra"), com título, artista, álbum, duração `m:ss` e "Letra sincronizada" / "Só texto, sem tempo" / "Instrumental — sem letra para estudar". Instrumental aparece desabilitado, não some. As setas passam entre versões habilitadas, e o leitor de tela anuncia a posição na lista. A lista rola por si acima de 420px.
+- Contagem e "Buscando no LRCLIB…" ficam num `role="status"`; erro (`LYRICS_RATE_LIMITED`, `LYRICS_UNAVAILABLE`) num `role="alert"`, sem nova tentativa automática — o mesmo termo só volta à rede por ação do proprietário.
+- Catálogo desligado (`integrations.lyrics=false`): a aba diz "Integração não configurada", sugere colar um `.lrc` em "Texto ou legenda" com um botão que troca de aba, e o envio fica desabilitado.
+- Direito fixo (`third_party`), sem seletor: um parágrafo curto diz que a letra é de terceiros, para estudo pessoal, não revisada e fora da exportação.
+- Letra ou clipe já importados (`409 SOURCE_EXISTS`) abrem a fonte existente em vez de mostrar erro.
+- Origem visível: na sala, o subtítulo do cabeçalho leva "Letra da comunidade (LRCLIB), não revisada" o tempo todo, e o trecho selecionado leva "Letra da comunidade (LRCLIB), não revisada · tempo aproximado" (ou "· sem tempo"). Na biblioteca, o artista é o autor e a linha leva "Letra (LRCLIB)".
+
+QA dedicado: `scripts/song-qa.mjs`, rodado por `scripts/qa-isolated.ts` com o servidor ligado a um LRCLIB simulado (`scripts/qa-lrclib-fixture.mjs`, carregado por `--import` só no servidor de QA; nenhuma chamada sai para lrclib.net). Cobre teclado, rótulos, reimportação, catálogo desligado, axe e overflow em 1440/390, claro/escuro. Capturas em `.impeccable/review/song-*.png`.
+
 ## Acessibilidade
 
-Estado atual: **`violations: []` em 9 rotas** medidas por axe (`node scripts/accessibility-qa.mjs`), incluindo a variante escura em mobile. Esse número é um contrato, não uma conquista pontual: uma mudança de tela que o quebre não está pronta. Ver [`../quality/README.md`](../quality/README.md).
+Estado atual: **`violations: []` em 9 rotas** medidas por axe (`node scripts/accessibility-qa.mjs`), incluindo a variante escura em mobile. Desde 2026-10-14 o axe de `scripts/source-qa.mjs` e `scripts/song-qa.mjs` exclui o iframe do player do YouTube (`.youtube-host iframe`), por decisão do proprietário: as violações ali são marcação do YouTube, não do FluentQuest. Esse número é um contrato, não uma conquista pontual: uma mudança de tela que o quebre não está pronta. Ver [`../quality/README.md`](../quality/README.md).
 
 ## Ao criar um componente
 

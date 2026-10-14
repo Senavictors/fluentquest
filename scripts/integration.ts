@@ -702,10 +702,13 @@ try {
       "INTEGRATION_NOT_CONFIGURED",
     );
     assert.equal(lyricsCalls.length, 0);
+    assert.equal((await request("bootstrap")).data.integrations.lyrics, false);
     ok(
       "Catálogo de letras desligado responde 'não configurada' sem rede (TASK-019 CA-02)",
     );
     process.env.LYRICS_CATALOG_ENABLED = "true";
+    // TASK-021: a aba "Música" lê este campo para explicar o catálogo desligado.
+    assert.equal((await request("bootstrap")).data.integrations.lyrics, true);
     lyricsReply = () =>
       Response.json([
         lyricsFixture,

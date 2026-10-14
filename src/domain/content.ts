@@ -326,6 +326,17 @@ export function lyricsSummary(record: LyricsRecord) {
   };
 }
 export type LyricsSummary = ReturnType<typeof lyricsSummary>;
+// TASK-021: duração de faixa como `m:ss` (4:30), arredondada ao segundo.
+export function songDuration(ms: number | null) {
+  if (ms === null || !Number.isFinite(ms) || ms < 0) return null;
+  const total = Math.round(ms / 1000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+// TASK-021 RN-03: rótulo de origem de um trecho de letra. Nunca diz "tempo"
+// quando a letra entrou sem sincronia.
+export function lyricsSegmentLabel(timeAccuracy: string) {
+  return `Letra da comunidade (LRCLIB), não revisada · ${timeAccuracy === "approximate" ? "tempo aproximado" : "sem tempo"}`;
+}
 // TASK-020 / ADR-009: importar música. O cliente manda só o ID do catálogo —
 // nunca o texto da letra —, então título, artista e trechos vêm do adaptador
 // e a atribuição não pode ser forjada. `rights` não é campo de entrada: letra

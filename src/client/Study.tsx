@@ -24,8 +24,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { PageHead, Empty, useApp } from "./App";
-import { api, clock } from "./http";
+import { api, clock, HttpError } from "./http";
 import type {
+  LyricsResult,
   Source,
   Segment,
   SegmentSupport,
@@ -39,6 +40,7 @@ import {
   STUDY_LANGUAGE_OPTIONS,
   type SupportedLanguage,
 } from "./languages";
+import { lyricsSegmentLabel, songDuration } from "../domain/content";
 // Apoio de um trecho. Quatro blocos que servem momentos diferentes, então
 // descem em ordem de uso: a tradução é o que se procura de relance e vem
 // primeiro; ponto e exemplo explicam; a pergunta é tarefa, não leitura, e por
@@ -235,6 +237,12 @@ export function Library() {
                 </h2>
                 <p>
                   {source.author} <span>·</span> {languageLabel(source.language)}
+                  {source.catalog_provider === "lrclib" && (
+                    <>
+                      {" "}
+                      <span>·</span> Letra (LRCLIB)
+                    </>
+                  )}
                 </p>
                 <span className="small quiet">
                   {source.segment_count
@@ -276,15 +284,43 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
     ),
     [consent, setConsent] = useState(false),
     [file, setFile] = useState<File | null>(null),
-    [language, setLanguage] = useState<SupportedLanguage>("en-US");
+    [language, setLanguage] = useState<SupportedLanguage>("en-US"),
+    // TASK-021 / ADR-009: "song" é só estado de tela; a fonte gravada é
+    // `text` (só letra) ou `youtube` (letra + clipe).
+    [songId, setSongId] = useState<number | null>(null),
+    [clipUrl, setClipUrl] = useState("");
   const english = isEnglish(language);
+  const song = kind === "song";
   return (
     <form
       className="import-form"
       onSubmit={(e) => {
         e.preventDefault();
         void run(async () => {
-          if (kind === "media") {
+          if (song) {
+            if (!songId) throw new Error("Escolha uma versão da letra.");
+            try {
+              const value = await api<{ sourceId: string }>(
+                "sources/lyrics",
+                "POST",
+                {
+                  catalogId: songId,
+                  language,
+                  videoUrl: clipUrl.trim() || undefined,
+                },
+              );
+              await onDone(value.sourceId);
+            } catch (error) {
+              // A letra (ou o clipe) já está na biblioteca: abre a fonte que
+              // existe em vez de mostrar um erro sem saída.
+              const existing =
+                error instanceof HttpError && error.code === "SOURCE_EXISTS"
+                  ? error.details.sourceId
+                  : null;
+              if (typeof existing !== "string") throw error;
+              await onDone(existing);
+            }
+          } else if (kind === "media") {
             if (!file)
               throw new Error("Selecione um arquivo de áudio ou vídeo.");
             const params = new URLSearchParams({
@@ -334,6 +370,7 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
           ["youtube", "Vídeo do YouTube"],
           ["text", "Texto ou legenda"],
           ["media", "Arquivo próprio"],
+          ["song", "Música"],
         ].map(([value, label]) => (
           <button
             type="button"
@@ -346,27 +383,55 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
           </button>
         ))}
       </div>
-      <div className="form-grid">
+      {song ? (
+        // Título e artista vêm do catálogo, não de campo digitado.
+        <SongSearch
+          selected={songId}
+          onSelect={setSongId}
+          onUseText={() => setKind("text")}
+        />
+      ) : (
+        <div className="form-grid">
+          <label>
+            Título
+            <input
+              required
+              maxLength={200}
+              placeholder="Um assunto que desperta sua curiosidade"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+          <label>
+            Autor ou canal
+            <input
+              required
+              maxLength={120}
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+            />
+          </label>
+        </div>
+      )}
+      {song && data.integrations.lyrics && (
         <label>
-          Título
+          Link do clipe oficial no YouTube (opcional)
           <input
-            required
-            maxLength={200}
-            placeholder="Um assunto que desperta sua curiosidade"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            type="url"
+            maxLength={500}
+            placeholder="https://www.youtube.com/watch?v=…"
+            aria-describedby="clip-help"
+            value={clipUrl}
+            onChange={(e) => setClipUrl(e.target.value)}
           />
         </label>
-        <label>
-          Autor ou canal
-          <input
-            required
-            maxLength={120}
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
-          />
-        </label>
-      </div>
+      )}
+      {song && data.integrations.lyrics && (
+        <p id="clip-help" className="small quiet">
+          Com o clipe, a letra acompanha o vídeo no player oficial. Sem ele,
+          você estuda a letra como texto.
+        </p>
+      )}
       <div className="form-grid">
         <label>
           Idioma do conteúdo
@@ -457,6 +522,7 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
         </>
       )}
       {kind !== "media" &&
+        !song &&
         !(kind === "youtube" && transcriptionMode === "ai") && (
           <>
             <label>
@@ -499,7 +565,15 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
           />
         </label>
       )}
-      {(kind !== "youtube" || text) && (
+      {song && (
+        // RN-06: o direito é fixo (third_party) e não se escolhe aqui.
+        <p className="small quiet">
+          A letra é obra de terceiros, vinda de um catálogo comunitário. Ela
+          fica só na sua biblioteca, para estudo pessoal, marcada como não
+          revisada, e não entra na exportação da conta.
+        </p>
+      )}
+      {!song && (kind !== "youtube" || text) && (
         <label>
           Permissão de uso
           <select value={rights} onChange={(e) => setRights(e.target.value)}>
@@ -516,7 +590,9 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
           onChange={(e) => setConsent(e.target.checked)}
         />
         <span>
-          {kind === "youtube" && !text
+          {song
+            ? "Entendo que a letra é de terceiros e que vou usá-la só para estudo pessoal."
+            : kind === "youtube" && !text
             ? transcriptionMode === "ai"
               ? "Entendo que o link público será verificado agora. Antes da transcrição, confirmarei o envio ao Gemini e o custo máximo."
               : "Entendo que o vídeo será reproduzido pelo player oficial e não será baixado."
@@ -525,16 +601,188 @@ function ImportForm({ onDone }: { onDone: (id: string) => Promise<void> }) {
       </label>
       <div className="form-footer">
         <p className="small quiet">
-          {kind === "youtube" && transcriptionMode === "ai"
-            ? "O vídeo não será baixado pelo FluentQuest. A URL pública será processada pelo Gemini somente após sua confirmação."
-            : "Texto e reprodução continuam disponíveis sem IA."}
+          {song
+            ? "O FluentQuest consulta só o LRCLIB e não baixa áudio nem vídeo."
+            : kind === "youtube" && transcriptionMode === "ai"
+              ? "O vídeo não será baixado pelo FluentQuest. A URL pública será processada pelo Gemini somente após sua confirmação."
+              : "Texto e reprodução continuam disponíveis sem IA."}
         </p>
-        <button className="primary" disabled={busy}>
+        <button
+          className="primary"
+          disabled={busy || (song && (!data.integrations.lyrics || !songId))}
+        >
           {busy ? "Adicionando…" : "Adicionar à biblioteca"}
           <ArrowRight size={17} />
         </button>
       </div>
     </form>
+  );
+}
+// TASK-021 / ADR-009: busca de letra no LRCLIB. Debounce de 450 ms e uma
+// requisição por vez — a anterior é cancelada quando a busca muda. Erro (429,
+// indisponível) vira mensagem e espera o proprietário: nada tenta de novo
+// sozinho. Resultados são radios nativos num fieldset, o que já dá navegação
+// por setas e anúncio de "1 de 20" ao leitor de tela.
+function SongSearch({
+  selected,
+  onSelect,
+  onUseText,
+}: {
+  selected: number | null;
+  onSelect: (id: number | null) => void;
+  onUseText: () => void;
+}) {
+  const { data } = useApp();
+  const [query, setQuery] = useState(""),
+    [results, setResults] = useState<LyricsResult[] | null>(null),
+    [loading, setLoading] = useState(false),
+    [error, setError] = useState("");
+  const inFlight = useRef<AbortController | null>(null);
+  // Enter e o debounce podem pedir o mesmo termo; só a primeira vai à rede.
+  const lastQuery = useRef("");
+  const search = useCallback(async (q: string) => {
+    if (q === lastQuery.current) return;
+    lastQuery.current = q;
+    inFlight.current?.abort();
+    const controller = new AbortController();
+    inFlight.current = controller;
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `/api/lyrics/search?${new URLSearchParams({ q })}`,
+        { signal: controller.signal },
+      );
+      const value = await response.json();
+      if (!response.ok)
+        throw new Error(value.message || "Não foi possível buscar a letra.");
+      setResults(value.results);
+    } catch (e) {
+      if (controller.signal.aborted) return;
+      // Depois de um erro, repetir o mesmo termo é permitido — por ação do
+      // proprietário, nunca automática.
+      lastQuery.current = "";
+      setResults(null);
+      setError(e instanceof Error ? e.message : "Não foi possível buscar.");
+    } finally {
+      if (inFlight.current === controller) {
+        inFlight.current = null;
+        setLoading(false);
+      }
+    }
+  }, []);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      inFlight.current?.abort();
+      inFlight.current = null;
+      lastQuery.current = "";
+      setLoading(false);
+      setResults(null);
+      return;
+    }
+    const timer = setTimeout(() => void search(q), 450);
+    return () => clearTimeout(timer);
+  }, [query, search]);
+  useEffect(() => () => inFlight.current?.abort(), []);
+  if (!data.integrations.lyrics)
+    return (
+      <div className="notice" role="status">
+        <p>
+          Integração não configurada: a busca de letras (LRCLIB) está
+          desligada nesta instalação.
+        </p>
+        <p>
+          Se você já tem a letra em formato <code>.lrc</code>, cole-a em
+          “Texto ou legenda” — o tempo de cada verso é aproveitado.
+        </p>
+        <button type="button" onClick={onUseText}>
+          Ir para Texto ou legenda
+        </button>
+      </div>
+    );
+  const status = loading
+    ? "Buscando no LRCLIB…"
+    : results
+      ? results.length
+        ? `${results.length} ${results.length === 1 ? "versão encontrada" : "versões encontradas"}.`
+        : "Nenhuma letra encontrada para essa busca."
+      : "";
+  return (
+    <div className="song-search">
+      <label>
+        Buscar música
+        <span className="song-search-field">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            maxLength={200}
+            placeholder="Nome da música e do artista"
+            autoComplete="off"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              onSelect(null);
+            }}
+            onKeyDown={(e) => {
+              // Enter busca na hora em vez de enviar o formulário.
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              if (query.trim().length >= 2) void search(query.trim());
+            }}
+          />
+        </span>
+      </label>
+      <p className="small quiet" role="status">
+        {status}
+      </p>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      {results && results.length > 0 && (
+        <fieldset className="transcription-choice song-results">
+          <legend>Escolha a versão da letra</legend>
+          {results.map((result) => {
+            const unusable =
+              result.instrumental || (!result.hasSynced && !result.hasPlain);
+            return (
+              <label
+                key={result.id}
+                className={unusable ? "song-option unusable" : "song-option"}
+              >
+                <input
+                  type="radio"
+                  name="song"
+                  value={result.id}
+                  disabled={unusable}
+                  checked={selected === result.id}
+                  onChange={() => onSelect(result.id)}
+                />
+                <span>
+                  <strong>{result.title}</strong>
+                  <small>
+                    {[result.artist, result.album, songDuration(result.durationMs)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </small>
+                  <small>
+                    {result.instrumental
+                      ? "Instrumental — sem letra para estudar"
+                      : result.hasSynced
+                        ? "Letra sincronizada"
+                        : result.hasPlain
+                          ? "Só texto, sem tempo"
+                          : "Sem letra"}
+                  </small>
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
+      )}
+    </div>
   );
 }
 type YTPlayer = {
@@ -987,6 +1235,11 @@ export function Study({ sourceId }: { sourceId: string }) {
           <span className="small quiet">
             {lesson.source.author} · {languageLabel(lesson.source.language)}
             {lesson.source.is_example ? " · Material de exemplo" : ""}
+            {/* TASK-021 RN-03: a origem da letra fica visível o tempo todo,
+                não só no trecho selecionado. */}
+            {lesson.source.catalog_provider === "lrclib"
+              ? " · Letra da comunidade (LRCLIB), não revisada"
+              : ""}
           </span>
         </div>
         {/* Mora no cabeçalho, não entre os controles de reprodução: o modo
@@ -1270,7 +1523,13 @@ export function Study({ sourceId }: { sourceId: string }) {
                               language={lesson.source.language}
                             />
                           )}
-                          {seg.time_accuracy === "approximate" && (
+                          {seg.origin === "lyrics_catalog" ? (
+                            // TASK-021 RN-03: letra sempre rotulada, com ou
+                            // sem tempo.
+                            <small className="quiet">
+                              {lyricsSegmentLabel(seg.time_accuracy)}
+                            </small>
+                          ) : seg.time_accuracy === "approximate" && (
                             <small className="quiet">
                               {seg.origin === "provider_video_url"
                                 ? "Transcrição automática não revisada · tempo aproximado"

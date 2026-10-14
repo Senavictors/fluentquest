@@ -1071,6 +1071,38 @@ label.search {
 .transcription-choice small {
   color: var(--muted);
 }
+/* TASK-021: aba "Música". O ícone fica dentro do campo, à esquerda; a lista
+   de versões rola por si para que o formulário não vire uma página de 20
+   resultados. Os radios dentro dela mantêm a região alcançável por teclado. */
+.song-search-field {
+  position: relative;
+  display: block;
+}
+.song-search-field svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.song-search-field input {
+  padding-left: 36px;
+}
+.song-search > p {
+  margin: -8px 0 14px;
+  min-height: 1.5em;
+}
+.song-results {
+  max-height: 420px;
+  overflow-y: auto;
+}
+.song-option strong {
+  overflow-wrap: anywhere;
+}
+.song-option.unusable {
+  color: var(--muted);
+}
 .ai-transcription {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);

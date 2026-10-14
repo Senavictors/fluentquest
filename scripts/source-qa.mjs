@@ -69,8 +69,14 @@ try {
       await expect(
         page.getByRole("button", { name: "Salvar legenda" }),
       ).toBeDisabled();
+      // O iframe do player é marcação do YouTube, não do FluentQuest (em
+      // 2026-10-14: aria-level, aria-label em div e avatar sem nome em
+      // .ytmVideoInfo*). Decisão do proprietário: sai da análise inteiro — o
+      // caminho por frame (`[iframe, "html"]`) não alcança o documento de
+      // origem cruzada de forma estável.
       const scan = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .exclude(".youtube-host iframe")
         .analyze();
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth > innerWidth,
