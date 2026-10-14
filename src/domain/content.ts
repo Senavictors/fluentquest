@@ -274,6 +274,58 @@ export function parseContent(input: string): SegmentInput[] {
     );
   return segments;
 }
+// TASK-019 / ADR-009: catálogo de letras LRCLIB por host fixo. O usuário só
+// fornece termo de busca ou ID numérico; origem, protocolo e caminho são
+// constantes daqui. Nenhum campo de entrada aceita URL (RN-01).
+export const LRCLIB_ORIGIN = "https://lrclib.net";
+export const lyricsSearchQuery = z
+  .string("Informe o nome da música ou do artista.")
+  .trim()
+  .min(1, "Informe o nome da música ou do artista.")
+  .max(200, "A busca aceita até 200 caracteres.");
+export const lyricsCatalogId = z.coerce
+  .number("Informe um ID numérico do LRCLIB.")
+  .int("Informe um ID numérico do LRCLIB.")
+  .positive("Informe um ID numérico do LRCLIB.")
+  .max(Number.MAX_SAFE_INTEGER, "ID do LRCLIB fora do intervalo.");
+export function lyricsSearchUrl(q: unknown) {
+  const url = new URL("/api/search", LRCLIB_ORIGIN);
+  url.searchParams.set("q", lyricsSearchQuery.parse(q));
+  return url;
+}
+export function lyricsGetUrl(id: unknown) {
+  return new URL(`/api/get/${lyricsCatalogId.parse(id)}`, LRCLIB_ORIGIN);
+}
+// RN-03: só o contrato usado é lido; o resto da resposta (inclusive o
+// `lyricsfile`) é descartado pelo `z.object`.
+export const lyricsRecord = z.object({
+  id: z.number().int().positive(),
+  trackName: z.string().trim().min(1).max(500),
+  artistName: z.string().trim().min(1).max(500),
+  albumName: z.string().trim().max(500).nullable(),
+  // Segundos, às vezes com fração. Nulo quando o catálogo não sabe.
+  duration: z.number().nonnegative().nullable(),
+  instrumental: z.boolean(),
+  plainLyrics: z.string().max(500000).nullable(),
+  syncedLyrics: z.string().max(500000).nullable(),
+});
+export type LyricsRecord = z.infer<typeof lyricsRecord>;
+export const MAX_LYRICS_RESULTS = 20;
+export function lyricsSummary(record: LyricsRecord) {
+  return {
+    id: record.id,
+    title: record.trackName,
+    artist: record.artistName,
+    album: record.albumName || null,
+    durationMs:
+      record.duration === null ? null : Math.round(record.duration * 1000),
+    // RN-08: instrumental aparece marcado, não some.
+    instrumental: record.instrumental,
+    hasSynced: Boolean(record.syncedLyrics?.trim()),
+    hasPlain: Boolean(record.plainLyrics?.trim()),
+  };
+}
+export type LyricsSummary = ReturnType<typeof lyricsSummary>;
 export const MAX_VIDEO_TRANSCRIPTION_MS = 15 * 60 * 1000;
 export function validateVideoTranscriptionDuration(durationMs: number) {
   if (!Number.isSafeInteger(durationMs) || durationMs <= 0)

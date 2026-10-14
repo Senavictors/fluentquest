@@ -1,7 +1,7 @@
 ---
 estado: real
-fonte: src/server/providers.ts, src/server/budget.ts, src/worker.ts, src/client/Practice.tsx
-ultima-revisao: 2026-09-17 (TASK-001 a TASK-012)
+fonte: src/server/providers.ts, src/server/budget.ts, src/worker.ts, src/client/Practice.tsx, src/domain/content.ts
+ultima-revisao: 2026-10-14 (TASK-001 a TASK-019; ADR-009)
 ---
 
 # Provedores de IA
@@ -75,6 +75,20 @@ Metadados são consultados mesmo com IA desligada e sem legenda, quando a chave 
 O proprietário pode escolher entre colar uma legenda autorizada e pedir transcrição ao Gemini. A opção de IA exige confirmação explícita após mostrar reserva máxima estimada e saldo do teto do aplicativo. São aceitos vídeos públicos, incorporáveis, com duração conhecida de até 15 minutos e direitos registrados como link público, conteúdo próprio ou licenciado. A URL canônica é enviada ao Gemini; o servidor não baixa áudio ou vídeo.
 
 Trechos gerados recebem `origin=provider_video_url`, `time_accuracy=approximate` e `quality_status=ai_unreviewed`. O modelo e o provedor ficam registrados na fonte. Nenhum trecho parcial é salvo em timeout, resposta incompleta, JSON inválido ou indisponibilidade. Sem transcrição, o player e a prática independente continuam disponíveis. Não há scraping nem acesso universal a legendas.
+
+## LRCLIB (letras de música)
+
+Catálogo comunitário de letras, gratuito e sem chave, adotado pelo ADR-009. **Desligado por padrão**: só responde com `LYRICS_CATALOG_ENABLED=true` em `.env.local` (reinicie a aplicação depois). Desligado, as rotas respondem "integração não configurada" sem nenhuma chamada de rede, e uma letra `.lrc` continua podendo ser colada em "Texto ou legenda" (TASK-018).
+
+```dotenv
+LYRICS_CATALOG_ENABLED=true
+```
+
+O adaptador (`createLyricsCatalog` em `src/server/providers.ts`) faz só `GET https://lrclib.net/api/search?q=…` e `GET https://lrclib.net/api/get/{id}`. A URL é montada no domínio (`lyricsSearchUrl`/`lyricsGetUrl` em `src/domain/content.ts`): o usuário fornece termo de busca ou ID numérico, nunca URL, e nenhuma entrada altera host, protocolo ou caminho. Envia `User-Agent: FluentQuest/<versão do package.json> (https://github.com/Senavictors/fluentquest)`, recusa redirecionamento e corta em 15 s.
+
+A resposta é validada pelo schema `lyricsRecord`; campo fora do contrato (inclusive `lyricsfile`) é descartado e resposta inválida vira `INVALID_PROVIDER_OUTPUT` — o log registra só o diagnóstico, nunca a letra. `429` vira `LYRICS_RATE_LIMITED` com o `Retry-After` informado, **sem nova tentativa automática**; o corpo de erro nunca é lido como JSON. Os testes usam sempre `fetch` simulado.
+
+Letra do LRCLIB é obra de terceiros numa base comunitária não licenciada: aceitável enquanto o app for de proprietário único, atrás de login e sem rota pública (ver riscos do ADR-009).
 
 ## Piloto antes de uso regular
 

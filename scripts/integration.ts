@@ -18,6 +18,9 @@ process.env.DATA_DIR = `./data/tests/${dbName}`;
 process.env.AI_ENABLED = "false";
 // Prevent developer credentials from making metadata requests in isolated tests.
 delete process.env.YOUTUBE_API_KEY;
+// TASK-019: o catálogo de letras também começa desligado; os cenários de
+// letra ligam a flag só depois de trocar o fetch pelo simulado.
+delete process.env.LYRICS_CATALOG_ENABLED;
 process.env.FQ_OWNER_SETUP = "true";
 const { migrate } = await import("./migrate");
 await migrate();
@@ -27,7 +30,8 @@ const { handle } = await import("../src/server/api");
 const { reserveBudget, settleBudget } = await import("../src/server/budget");
 const { prepare, maintenance } = await import("../src/worker");
 const { boss } = await import("../src/server/queue");
-const { youtube, gemini } = await import("../src/server/providers");
+const { youtube, gemini, lyricsCatalog, createLyricsCatalog } =
+  await import("../src/server/providers");
 let passed = 0;
 const ok = (label: string) => {
   passed++;
@@ -666,6 +670,120 @@ try {
   ok(
     "LRC importado como texto grava tempo aproximado, sem metadado nem pausa (TASK-018)",
   );
+  // TASK-019 / ADR-009: rotas de letra com o adaptador real sobre um fetch
+  // simulado — o mapeamento de erros é o de produção, a rede nunca é usada.
+  const originalLyrics = { ...lyricsCatalog };
+  const lyricsCalls: URL[] = [];
+  let lyricsReply: () => Response = () => new Response("[]");
+  const lyricsFixture = {
+    id: 4242,
+    trackName: "Green Build",
+    artistName: "The Linters",
+    albumName: "Fixtures",
+    duration: 183,
+    instrumental: false,
+    plainLyrics: "The build is green again\nShip it before lunch",
+    syncedLyrics:
+      "[00:01.50] The build is green again\n[00:04.00] Ship it before lunch",
+  };
+  Object.assign(
+    lyricsCatalog,
+    createLyricsCatalog(async (input) => {
+      lyricsCalls.push(new URL(String(input)));
+      return lyricsReply();
+    }),
+  );
+  try {
+    const off = await request("lyrics/search?q=green%20build");
+    assert.equal(off.status, 503);
+    assert.equal(off.data.code, "INTEGRATION_NOT_CONFIGURED");
+    assert.equal(
+      (await request(`lyrics/${lyricsFixture.id}`)).data.code,
+      "INTEGRATION_NOT_CONFIGURED",
+    );
+    assert.equal(lyricsCalls.length, 0);
+    ok(
+      "Catálogo de letras desligado responde 'não configurada' sem rede (TASK-019 CA-02)",
+    );
+    process.env.LYRICS_CATALOG_ENABLED = "true";
+    lyricsReply = () =>
+      Response.json([
+        lyricsFixture,
+        {
+          ...lyricsFixture,
+          id: 4243,
+          instrumental: true,
+          plainLyrics: null,
+          syncedLyrics: null,
+        },
+      ]);
+    const found = await request("lyrics/search?q=green%20build");
+    assert.equal(found.status, 200);
+    assert.deepEqual(found.data.results[0], {
+      id: 4242,
+      title: "Green Build",
+      artist: "The Linters",
+      album: "Fixtures",
+      durationMs: 183000,
+      instrumental: false,
+      hasSynced: true,
+      hasPlain: true,
+    });
+    assert.equal(found.data.results[1].instrumental, true);
+    assert.equal("syncedLyrics" in found.data.results[0], false);
+    lyricsReply = () => Response.json(lyricsFixture);
+    const one = await request(`lyrics/${lyricsFixture.id}`);
+    assert.equal(one.status, 200);
+    assert.equal(one.data.syncedLyrics, lyricsFixture.syncedLyrics);
+    assert.deepEqual(
+      lyricsCalls.map((u) => [u.origin, u.pathname]),
+      [
+        ["https://lrclib.net", "/api/search"],
+        ["https://lrclib.net", "/api/get/4242"],
+      ],
+    );
+    ok(
+      "Busca e obtenção de letra pelo host fixo com o adaptador simulado (TASK-019 CA-01)",
+    );
+    lyricsReply = () =>
+      new Response("rate limited", {
+        status: 429,
+        headers: { "Retry-After": "12" },
+      });
+    const limited = await request("lyrics/search?q=x");
+    assert.equal(limited.status, 429);
+    assert.equal(limited.data.code, "LYRICS_RATE_LIMITED");
+    assert.match(limited.data.message, /12 s/);
+    lyricsReply = () => new Response("{}", { status: 404 });
+    const missing = await request("lyrics/999999");
+    assert.equal(missing.status, 404);
+    assert.equal(missing.data.code, "LYRICS_NOT_FOUND");
+    lyricsReply = () => new Response("<html>", { status: 200 });
+    const invalid = await request("lyrics/search?q=x");
+    assert.equal(invalid.status, 502);
+    assert.equal(invalid.data.code, "INVALID_PROVIDER_OUTPUT");
+    const callsBefore = lyricsCalls.length;
+    assert.equal(
+      (await request("lyrics/search?q=")).data.code,
+      "INVALID_INPUT",
+    );
+    assert.equal(
+      (await request("lyrics/..%2Fsearch")).data.code,
+      "INVALID_INPUT",
+    );
+    assert.equal(lyricsCalls.length, callsBefore);
+    assert.equal(
+      (await request("lyrics/search?q=x", "GET", undefined, randomUUID(), ""))
+        .status,
+      401,
+    );
+    ok(
+      "429, 404, resposta inválida, entrada inválida e acesso anônimo nas rotas de letra (TASK-019 CA-03)",
+    );
+  } finally {
+    Object.assign(lyricsCatalog, originalLyrics);
+    delete process.env.LYRICS_CATALOG_ENABLED;
+  }
   await request("profile", "PATCH", { explanationLanguage: "es-ES" });
   assert.equal((await request("bootstrap")).data.profile.locale, "es-ES");
   await request("profile", "PATCH", { explanationLanguage: "pt-BR" });

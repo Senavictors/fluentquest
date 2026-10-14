@@ -15,6 +15,7 @@ import {
   validateVideoTranscriptionDuration,
   youtubeId,
   scenarios,
+  lyricsSummary,
   SUPPORTED_LANGUAGES,
   type SupportedLanguage,
 } from "../domain/content";
@@ -33,6 +34,7 @@ import {
   textAI,
   assessSpeech,
   streamTutor,
+  lyricsCatalog,
 } from "./providers";
 import {
   clearCredential,
@@ -383,6 +385,20 @@ export async function handle(request: Request, parts: string[]) {
         .set({ diagnostic })
         .where(eq(profiles.userId, uid));
       return json(diagnostic);
+    }
+    // TASK-019 / ADR-009: busca de letras no LRCLIB. A sessão do proprietário
+    // já foi exigida acima (RN-07); o servidor só fala com o host fixo.
+    if (resource === "lyrics" && method === "GET" && id && !action) {
+      if (id === "search")
+        return json({
+          results: await lyricsCatalog.search(url.searchParams.get("q") ?? ""),
+        });
+      const record = await lyricsCatalog.get(id);
+      return json({
+        ...lyricsSummary(record),
+        plainLyrics: record.plainLyrics,
+        syncedLyrics: record.syncedLyrics,
+      });
     }
     if (resource === "example" && method === "POST")
       return json(await importExample(uid, key), 201);

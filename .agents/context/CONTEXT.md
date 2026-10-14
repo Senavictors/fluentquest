@@ -116,3 +116,7 @@ ADR-009 passou a `accepted` com o aval do proprietário. TASK-018 concluída: `p
 Ambiente local recriado nesta data: o container `fluentquest-postgres`, os três `.env` e `node_modules` não existiam. Banco novo e vazio, proprietário de teste `estudante@fluentquest.local`, container **sem** reinício automático (`docker start fluentquest-postgres`). Detalhe em `docs/architecture/deployment.md`.
 
 Achado fora de escopo: `scripts/source-qa.mjs` (rodado por `qa-isolated.ts`) falha com violações axe que estão todas dentro do iframe do player do YouTube (marcação de terceiros). Precisa de decisão do proprietário; registrado em TASK-018. Próxima: TASK-019 (adaptador LRCLIB e busca).
+
+## Atualização — 2026-10-14: TASK-019, adaptador LRCLIB
+
+TASK-019 concluída. O servidor busca letras no LRCLIB só por host fixo: `GET /api/lyrics/search?q=` e `GET /api/lyrics/:id`, com URL montada no domínio (`lyricsSearchUrl`/`lyricsGetUrl`), `User-Agent` identificado, timeout de 15 s, redirecionamento recusado e resposta validada por `lyricsRecord`. `429` vira `LYRICS_RATE_LIMITED` com o `Retry-After`, sem nova tentativa. **`LYRICS_CATALOG_ENABLED` continua desligada** (não está em `.env.local`): as rotas respondem "integração não configurada" sem rede. `typecheck`, `npm test` (91/91) e `test:integration` (45/45) verdes, todos com `fetch` simulado. **Nenhuma chamada real ao LRCLIB foi feita ainda** — a primeira depende de autorização do proprietário. Próxima: TASK-020 (fonte com proveniência, migração 008), que depende da decisão sobre `rights`.

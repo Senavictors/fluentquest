@@ -11,6 +11,10 @@ import {
   sourceInput,
   cardInput,
   languageDiverges,
+  lyricsSearchUrl,
+  lyricsGetUrl,
+  lyricsRecord,
+  lyricsSummary,
 } from "../src/domain/content";
 import { initialCard, scheduleCard, xpLevel } from "../src/domain/review";
 import { tokenCostMicros, budgetPeriod } from "../src/server/budget";
@@ -403,5 +407,103 @@ describe("Divergência de idioma declarado × detectado (TASK-014, RN-05)", () =
   it("sinaliza divergência entre idiomas realmente diferentes", () => {
     expect(languageDiverges("es-ES", "en")).toBe(true);
     expect(languageDiverges("en-US", "japanese")).toBe(true);
+  });
+});
+
+describe("Catálogo de letras LRCLIB (TASK-019)", () => {
+  const record = {
+    id: 42,
+    trackName: "Green Build",
+    artistName: "The Linters",
+    albumName: "Fixtures",
+    duration: 183.4,
+    instrumental: false,
+    plainLyrics: "The build is green again",
+    syncedLyrics: "[00:01.50] The build is green again",
+  };
+  it("nenhuma entrada altera host, protocolo ou caminho (CA-04)", () => {
+    for (const q of [
+      "drake not you too",
+      "https://evil.example/x",
+      "//evil.example",
+      "../../admin?x=1#frag",
+      "@evil.example",
+      "a&q=b&host=evil",
+      "naïve café 日本",
+    ]) {
+      const url = lyricsSearchUrl(q);
+      expect([url.protocol, url.host, url.pathname]).toEqual([
+        "https:",
+        "lrclib.net",
+        "/api/search",
+      ]);
+      expect([...url.searchParams.keys()]).toEqual(["q"]);
+      expect(url.searchParams.get("q")).toBe(q.trim());
+      expect(url.username + url.password + url.port + url.hash).toBe("");
+    }
+    expect(lyricsGetUrl("123").href).toBe("https://lrclib.net/api/get/123");
+    expect(lyricsGetUrl(7).href).toBe("https://lrclib.net/api/get/7");
+    for (const id of [
+      "../search",
+      "1/../../x",
+      "https://evil.example",
+      "-1",
+      "0",
+      "1.5",
+      "",
+      "abc",
+      "1e400",
+    ])
+      expect(() => lyricsGetUrl(id)).toThrow();
+  });
+  it("busca exige de 1 a 200 caracteres", () => {
+    expect(() => lyricsSearchUrl("   ")).toThrow();
+    expect(() => lyricsSearchUrl("a".repeat(201))).toThrow();
+    expect(() => lyricsSearchUrl(undefined)).toThrow();
+    expect(lyricsSearchUrl("a".repeat(200)).searchParams.get("q")).toHaveLength(
+      200,
+    );
+  });
+  it("registro descarta campo fora do contrato e resume sem a letra (RN-03)", () => {
+    const parsed = lyricsRecord.parse({
+      ...record,
+      lyricsfile: "version: 1",
+      name: "extra",
+    });
+    expect(parsed).not.toHaveProperty("lyricsfile");
+    expect(lyricsSummary(parsed)).toEqual({
+      id: 42,
+      title: "Green Build",
+      artist: "The Linters",
+      album: "Fixtures",
+      durationMs: 183400,
+      instrumental: false,
+      hasSynced: true,
+      hasPlain: true,
+    });
+    expect(() => lyricsRecord.parse({ ...record, id: "42" })).toThrow();
+    expect(() =>
+      lyricsRecord.parse({ ...record, instrumental: undefined }),
+    ).toThrow();
+  });
+  it("instrumental aparece marcado e sem letra, não some (RN-08)", () => {
+    expect(
+      lyricsSummary(
+        lyricsRecord.parse({
+          ...record,
+          instrumental: true,
+          plainLyrics: null,
+          syncedLyrics: null,
+          albumName: null,
+          duration: null,
+        }),
+      ),
+    ).toMatchObject({
+      instrumental: true,
+      hasSynced: false,
+      hasPlain: false,
+      album: null,
+      durationMs: null,
+    });
   });
 });

@@ -13,8 +13,16 @@ import {
   assertTranscriptCoverage,
   youtubeId,
   LANGUAGE_NAMES,
+  lyricsRecord,
+  lyricsSearchUrl,
+  lyricsGetUrl,
+  lyricsSummary,
+  MAX_LYRICS_RESULTS,
+  type LyricsRecord,
+  type LyricsSummary,
   type SupportedLanguage,
 } from "../domain/content";
+import packageJson from "../../package.json";
 import {
   reserveBudget,
   settleBudget,
@@ -1101,3 +1109,124 @@ export const youtube: VideoMetadataProvider = {
     };
   },
 };
+// TASK-019 / ADR-009: catálogo de letras LRCLIB. Só `GET /api/search` e
+// `GET /api/get/{id}` em `https://lrclib.net`, com URL montada no domínio.
+// Gratuito e sem chave; o que liga é `LYRICS_CATALOG_ENABLED`. Nenhuma nova
+// tentativa automática: `429` e falha de rede viram erro honesto (RN-04).
+export const LYRICS_USER_AGENT = `FluentQuest/${packageJson.version} (https://github.com/Senavictors/fluentquest)`;
+export function lyricsCatalogEnabled() {
+  return process.env.LYRICS_CATALOG_ENABLED === "true";
+}
+export interface LyricsCatalog {
+  search(q: string): Promise<LyricsSummary[]>;
+  get(id: number | string): Promise<LyricsRecord>;
+}
+// O LRCLIB devolve `Retry-After` em segundos; a forma de data HTTP também é
+// válida pelo protocolo. Qualquer outra coisa é ignorada, não adivinhada.
+function retryAfterSeconds(value: string | null) {
+  if (!value) return null;
+  if (/^\d+$/.test(value.trim())) return Number(value.trim());
+  const at = Date.parse(value);
+  return Number.isNaN(at)
+    ? null
+    : Math.max(0, Math.ceil((at - Date.now()) / 1000));
+}
+export function createLyricsCatalog(
+  fetchImpl: typeof fetch = (...args) => fetch(...args),
+): LyricsCatalog {
+  // RN-06: desligado, nenhuma chamada de rede — e a resposta é a mesma
+  // qualquer que seja a entrada, por isso vem antes da validação.
+  function assertEnabled() {
+    if (!lyricsCatalogEnabled())
+      throw new AppError(
+        "INTEGRATION_NOT_CONFIGURED",
+        "Integração não configurada: o catálogo de letras (LRCLIB) está desligado.",
+        503,
+      );
+  }
+  async function request(url: URL, notFound: boolean) {
+    let response: Response;
+    try {
+      response = await fetchImpl(url, {
+        headers: {
+          "User-Agent": LYRICS_USER_AGENT,
+          Accept: "application/json",
+        },
+        redirect: "error",
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch {
+      throw new AppError(
+        "LYRICS_UNAVAILABLE",
+        "O catálogo de letras (LRCLIB) não respondeu (rede ou tempo esgotado). Tente de novo mais tarde.",
+        503,
+        true,
+      );
+    }
+    // RN-05: corpo de erro nunca é lido como JSON — o 429 vem da borda e pode
+    // nem ser JSON.
+    if (response.status === 429) {
+      const seconds = retryAfterSeconds(response.headers.get("Retry-After"));
+      throw new AppError(
+        "LYRICS_RATE_LIMITED",
+        seconds === null
+          ? "O LRCLIB limitou as consultas. Tente de novo mais tarde."
+          : `O LRCLIB limitou as consultas. Tente de novo em ${seconds} s.`,
+        429,
+        true,
+      );
+    }
+    if (notFound && response.status === 404)
+      throw new AppError(
+        "LYRICS_NOT_FOUND",
+        "Essa letra não existe no LRCLIB.",
+        404,
+      );
+    if (!response.ok)
+      throw new AppError(
+        "LYRICS_UNAVAILABLE",
+        `O catálogo de letras (LRCLIB) respondeu com erro ${response.status}. Tente de novo mais tarde.`,
+        502,
+        true,
+      );
+    const text = await response.text();
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      throw invalidLyrics("a resposta não é JSON válido.");
+    }
+  }
+  function invalidLyrics(detail: string) {
+    // Só o diagnóstico vai ao log — nunca a letra, que é obra de terceiros.
+    console.error("LYRICS_INVALID_OUTPUT", detail);
+    return new AppError(
+      "INVALID_PROVIDER_OUTPUT",
+      `O LRCLIB respondeu num formato inesperado (${detail}) e nada foi usado. Tente de novo mais tarde.`,
+      502,
+      true,
+    );
+  }
+  function validate<T>(schema: z.ZodType<T>, value: unknown) {
+    const result = schema.safeParse(value);
+    if (result.success) return result.data;
+    const issue = result.error.issues[0];
+    throw invalidLyrics(
+      `campo ${issue?.path.join(".") || "raiz"}: ${issue?.message ?? "inválido"}`,
+    );
+  }
+  return {
+    async search(q) {
+      assertEnabled();
+      const records = validate(
+        z.array(lyricsRecord),
+        await request(lyricsSearchUrl(q), false),
+      );
+      return records.slice(0, MAX_LYRICS_RESULTS).map(lyricsSummary);
+    },
+    async get(id) {
+      assertEnabled();
+      return validate(lyricsRecord, await request(lyricsGetUrl(id), true));
+    },
+  };
+}
+export const lyricsCatalog: LyricsCatalog = createLyricsCatalog();

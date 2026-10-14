@@ -40,6 +40,8 @@ import {
   openai,
   requireAI,
   youtube,
+  createLyricsCatalog,
+  LYRICS_USER_AGENT,
 } from "../src/server/providers";
 
 beforeEach(() => {
@@ -657,5 +659,155 @@ describe("Prompts parametrizados por idioma (TASK-014)", () => {
       gemini.support("user", "A sentence.", "ja-JP", "pt-BR"),
     ).rejects.toMatchObject({ code: "INTEGRATION_NOT_CONFIGURED" });
     expect(mocks.create).not.toHaveBeenCalled();
+  });
+});
+
+// TASK-019 / ADR-009. `fetch` simulado sempre — nenhuma chamada real ao LRCLIB.
+describe("Adaptador LRCLIB (TASK-019)", () => {
+  const record = {
+    id: 42,
+    trackName: "Green Build",
+    artistName: "The Linters",
+    albumName: "Fixtures",
+    duration: 183,
+    instrumental: false,
+    plainLyrics: "The build is green again",
+    syncedLyrics: "[00:01.50] The build is green again",
+  };
+  const reply = (body: string, status = 200, headers?: HeadersInit) =>
+    vi.fn(async () => new Response(body, { status, headers }));
+  beforeEach(() => vi.stubEnv("LYRICS_CATALOG_ENABLED", "true"));
+  it("busca no host fixo com User-Agent identificado e devolve lista normalizada (CA-01)", async () => {
+    const fetchMock = reply(
+      JSON.stringify([
+        record,
+        {
+          ...record,
+          id: 43,
+          instrumental: true,
+          syncedLyrics: null,
+          plainLyrics: null,
+        },
+      ]),
+    );
+    const results = await createLyricsCatalog(fetchMock).search("green build");
+    expect(results).toEqual([
+      {
+        id: 42,
+        title: "Green Build",
+        artist: "The Linters",
+        album: "Fixtures",
+        durationMs: 183000,
+        instrumental: false,
+        hasSynced: true,
+        hasPlain: true,
+      },
+      expect.objectContaining({ id: 43, instrumental: true, hasSynced: false }),
+    ]);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [
+      URL,
+      RequestInit,
+    ];
+    expect(url.href).toBe("https://lrclib.net/api/search?q=green+build");
+    expect(new Headers(init.headers).get("User-Agent")).toBe(
+      `FluentQuest/0.1.0 (https://github.com/Senavictors/fluentquest)`,
+    );
+    expect(LYRICS_USER_AGENT).toMatch(/^FluentQuest\/\d+\.\d+\.\d+ \(/);
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init.redirect).toBe("error");
+  });
+  it("limita a 20 resultados", async () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      ...record,
+      id: i + 1,
+    }));
+    expect(
+      await createLyricsCatalog(reply(JSON.stringify(many))).search("x"),
+    ).toHaveLength(20);
+  });
+  it("catálogo desligado responde 'integração não configurada' sem chamar a rede (CA-02)", async () => {
+    vi.stubEnv("LYRICS_CATALOG_ENABLED", "false");
+    const fetchMock = reply("[]");
+    const catalog = createLyricsCatalog(fetchMock);
+    for (const call of [
+      () => catalog.search("green build"),
+      () => catalog.search(""),
+      () => catalog.get(42),
+      () => catalog.get("not-a-number"),
+    ])
+      await expect(call()).rejects.toMatchObject({
+        code: "INTEGRATION_NOT_CONFIGURED",
+        status: 503,
+      });
+    vi.stubEnv("LYRICS_CATALOG_ENABLED", "");
+    await expect(catalog.search("x")).rejects.toMatchObject({
+      code: "INTEGRATION_NOT_CONFIGURED",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it("429 vira LYRICS_RATE_LIMITED com Retry-After, sem nova tentativa e sem ler o corpo como JSON (CA-03)", async () => {
+    const fetchMock = reply("<html>Too Many Requests</html>", 429, {
+      "Retry-After": "30",
+    });
+    await expect(
+      createLyricsCatalog(fetchMock).search("x"),
+    ).rejects.toMatchObject({
+      code: "LYRICS_RATE_LIMITED",
+      status: 429,
+      message: expect.stringContaining("30 s"),
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await expect(
+      createLyricsCatalog(reply("", 429)).get(1),
+    ).rejects.toMatchObject({
+      code: "LYRICS_RATE_LIMITED",
+      message: expect.stringContaining("mais tarde"),
+    });
+  });
+  it("404 em get vira LYRICS_NOT_FOUND; outro erro HTTP vira LYRICS_UNAVAILABLE (CA-03)", async () => {
+    await expect(
+      createLyricsCatalog(reply('{"message":"x"}', 404)).get(99),
+    ).rejects.toMatchObject({ code: "LYRICS_NOT_FOUND", status: 404 });
+    await expect(
+      createLyricsCatalog(reply("oops", 500)).search("x"),
+    ).rejects.toMatchObject({ code: "LYRICS_UNAVAILABLE", status: 502 });
+  });
+  it("timeout e falha de rede viram LYRICS_UNAVAILABLE (CA-03)", async () => {
+    for (const error of [
+      new DOMException("The operation timed out.", "TimeoutError"),
+      new TypeError("fetch failed"),
+    ]) {
+      const fetchMock = vi.fn(async () => {
+        throw error;
+      });
+      await expect(
+        createLyricsCatalog(fetchMock).search("x"),
+      ).rejects.toMatchObject({ code: "LYRICS_UNAVAILABLE", status: 503 });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    }
+  });
+  it("JSON inválido ou fora do contrato vira INVALID_PROVIDER_OUTPUT (CA-03)", async () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const [body, call] of [
+      ["not json", "search"],
+      ['{"not":"an array"}', "search"],
+      [JSON.stringify([{ ...record, id: "42" }]), "search"],
+      [JSON.stringify({ ...record, trackName: 7 }), "get"],
+    ] as const) {
+      const catalog = createLyricsCatalog(reply(body));
+      await expect(
+        call === "search" ? catalog.search("x") : catalog.get(42),
+      ).rejects.toMatchObject({ code: "INVALID_PROVIDER_OUTPUT", status: 502 });
+    }
+    // O log leva só o diagnóstico, nunca a letra.
+    for (const [, detail] of quiet.mock.calls)
+      expect(String(detail)).not.toContain("green again");
+    quiet.mockRestore();
+  });
+  it("get devolve o registro validado, sem campo fora do contrato", async () => {
+    const result = await createLyricsCatalog(
+      reply(JSON.stringify({ ...record, lyricsfile: "version: 1" })),
+    ).get("42");
+    expect(result).toEqual(record);
   });
 });
