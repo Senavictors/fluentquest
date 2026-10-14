@@ -17,6 +17,7 @@ Arquivo novo em `migrations/`, no padrão `NNN_descricao.sql`. `scripts/migrate.
 | `005_segment_support`                   | `segments.support jsonb` — apoio de trecho em quatro campos, em vez de texto corrido.                                                                                              |
 | `006_reservation_reconciliation`        | `reconciled_at` e `reconciliation_note` — a saída da reserva ambígua (ADR-003).                                                                                                    |
 | `007_integration_credentials`           | `integration_credentials` — chave de provedor cifrada, cadastrável pela interface (ADR-005).                                                                                       |
+| `008_lyrics_catalog`                    | `sources.catalog_provider` (só `lrclib`), `catalog_id`, `catalog_duration_ms`, `catalog_meta jsonb` e índice único parcial `(user_id, catalog_provider, catalog_id)` — letra de música com atribuição própria e sem duplicata (ADR-009). Aditiva. |
 
 ## Onde cada coisa mora
 

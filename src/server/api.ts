@@ -16,6 +16,9 @@ import {
   youtubeId,
   scenarios,
   lyricsSummary,
+  lyricsImportInput,
+  lyricsSegments,
+  LYRICS_RIGHTS,
   SUPPORTED_LANGUAGES,
   type SupportedLanguage,
 } from "../domain/content";
@@ -538,6 +541,121 @@ export async function handle(request: Request, parts: string[]) {
       });
       return json(result, 202);
     }
+    // TASK-020 / ADR-009: música como fonte. O cliente manda o ID do LRCLIB;
+    // o texto vem do adaptador, então título, artista e trechos não podem ser
+    // forjados. Precisa vir antes de `sources/:id`, que leria "lyrics" como ID.
+    if (
+      resource === "sources" &&
+      id === "lyrics" &&
+      !action &&
+      method === "POST"
+    ) {
+      const input = lyricsImportInput.parse(await body(request));
+      const catalogId = String(input.catalogId);
+      // RN-04: host e ID exatos, pela mesma validação das outras fontes.
+      const videoId = input.videoUrl ? youtubeId(input.videoUrl) : null;
+      const sourceExists = (sourceId: string, message: string) =>
+        json(
+          { code: "SOURCE_EXISTS", message, sourceId, retryable: false },
+          409,
+        );
+      const findExisting = async (c?: PoolClient) => {
+        const sql =
+          "SELECT id, catalog_id FROM sources WHERE user_id=$1 AND ((catalog_provider='lrclib' AND catalog_id=$2) OR video_id=$3) ORDER BY (catalog_id=$2) DESC NULLS LAST LIMIT 1";
+        const params = [uid, catalogId, videoId];
+        return c
+          ? (await c.query(sql, params)).rows[0]
+          : (await query(sql, params))[0];
+      };
+      const existsMessage = (row: { catalog_id: string | null }) =>
+        row.catalog_id === catalogId
+          ? "Essa letra já foi importada."
+          : "Esse vídeo já é uma fonte na sua biblioteca.";
+      // RN-05: duplicata é respondida antes de qualquer chamada ao LRCLIB.
+      const before = await findExisting();
+      if (before) return sourceExists(before.id, existsMessage(before));
+      if (!key || key.length > 128)
+        throw new AppError(
+          "IDEMPOTENCY_REQUIRED",
+          "Esta ação precisa de uma chave idempotente.",
+        );
+      const record = await lyricsCatalog.get(catalogId);
+      // RN-06: instrumental ou sem letra não grava nada.
+      const segments = lyricsSegments(record);
+      const result = await idempotent<
+        | { sourceId: string; existing: true; message: string }
+        | { sourceId: string; jobId: string }
+      >(uid, "source-lyrics", key, input, async (c) => {
+        // A rede ficou fora da transação; a corrida entre duas importações
+        // é decidida aqui (e, em último caso, pelo índice único).
+        const raced = await findExisting(c);
+        if (raced)
+          return {
+            sourceId: raced.id as string,
+            existing: true,
+            message: existsMessage(raced),
+          };
+        const source = (
+          await c.query(
+            "INSERT INTO sources(user_id,kind,title,author,language,url,video_id,rights,status,transcription_mode,catalog_provider,catalog_id,catalog_duration_ms,catalog_meta) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'text_ready','manual','lrclib',$9,$10,$11) RETURNING id",
+            [
+              uid,
+              videoId ? "youtube" : "text",
+              record.trackName.slice(0, 200),
+              record.artistName.slice(0, 120),
+              input.language,
+              videoId ? `https://www.youtube.com/watch?v=${videoId}` : null,
+              videoId,
+              LYRICS_RIGHTS,
+              catalogId,
+              record.duration === null
+                ? null
+                : Math.round(record.duration * 1000),
+              JSON.stringify({
+                track: record.trackName,
+                artist: record.artistName,
+                album: record.albumName,
+                synced: segments[0].timeAccuracy === "approximate",
+              }),
+            ],
+          )
+        ).rows[0];
+        for (let i = 0; i < segments.length; i++) {
+          const s = segments[i];
+          // RN-01: comunidade, não revisado. Mesmo tratamento de
+          // `ai_unreviewed` — vira cartão só pela confirmação do aluno.
+          await c.query(
+            "INSERT INTO segments(source_id,ordinal,start_ms,end_ms,text,origin,time_accuracy,quality_status) VALUES($1,$2,$3,$4,$5,'lyrics_catalog',$6,'community_unreviewed')",
+            [source.id, i, s.startMs, s.endMs, s.text, s.timeAccuracy],
+          );
+        }
+        // Mesmo job de preparo das outras fontes: com vídeo e chave do
+        // YouTube, o worker confere incorporação e duração.
+        const jobStatus =
+          (videoId && integrationStatus().youtube) || integrationStatus().ai
+            ? "queued"
+            : "awaiting_configuration";
+        const job = (
+          await c.query(
+            "INSERT INTO jobs(user_id,source_id,kind,status,error_message) VALUES($1,$2,'prepare',$3,$4) RETURNING id",
+            [
+              uid,
+              source.id,
+              jobStatus,
+              jobStatus === "queued" ? null : integrationStatus().message,
+            ],
+          )
+        ).rows[0];
+        await c.query("INSERT INTO job_events(job_id,data) VALUES($1,$2)", [
+          job.id,
+          JSON.stringify({ status: jobStatus }),
+        ]);
+        return { sourceId: source.id as string, jobId: job.id as string };
+      });
+      if ("existing" in result)
+        return sourceExists(result.sourceId, result.message);
+      return json(result, 201);
+    }
     if (resource === "sources" && id) {
       const source = await sourceFor(uid, id);
       if (method === "GET" && !action) {
@@ -752,6 +870,16 @@ export async function handle(request: Request, parts: string[]) {
             rights: z.enum(["owned", "licensed", "public_link"]),
           })
           .parse(await body(request));
+        // TASK-020 / ADR-009: anexar legenda sobrescreve `rights`. Numa letra
+        // do catálogo isso a reclassificaria como material do proprietário —
+        // e a exportação de conta, que só leva trechos `owned`, passaria a
+        // levar obra de terceiros.
+        if (source.catalog_id)
+          throw new AppError(
+            "CATALOG_SOURCE_LOCKED",
+            "Letra importada do catálogo não recebe legenda anexada: a origem e os direitos dela não mudam. Para outra versão, importe-a pela busca de música.",
+            409,
+          );
         const publicCaption = v.rights === "public_link";
         // Não é um caminho para reclassificar fonte: só vale onde o link
         // público já era o direito declarado na criação da fonte.

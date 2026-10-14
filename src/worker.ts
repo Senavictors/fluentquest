@@ -50,8 +50,11 @@ export async function prepare(id: string) {
     if (source.video_id && integrationStatus().youtube) {
       const metadata = await youtube.get(source.video_id);
       durationMs = metadata.durationMs;
+      // TASK-020 / ADR-009: numa música, título e autor são os do catálogo de
+      // letras (faixa e artista), não os do clipe; o vídeo só informa duração e
+      // disponibilidade.
       await query(
-        "UPDATE sources SET title=$2,author=$3,duration_ms=$4,metadata_updated_at=now(),status=$5 WHERE id=$1",
+        "UPDATE sources SET title=CASE WHEN catalog_id IS NULL THEN $2 ELSE title END,author=CASE WHEN catalog_id IS NULL THEN $3 ELSE author END,duration_ms=$4,metadata_updated_at=now(),status=$5 WHERE id=$1",
         [
           source.id,
           metadata.title,
@@ -254,7 +257,7 @@ export async function maintenance() {
   );
   await query("DELETE FROM rate_limits WHERE resets_at<now()-interval '1 day'");
   await query(
-    "UPDATE sources SET title='Vídeo aguardando revalidação',author='YouTube',duration_ms=NULL,metadata_updated_at=NULL WHERE video_id IS NOT NULL AND metadata_updated_at<now()-interval '30 days'",
+    "UPDATE sources SET title=CASE WHEN catalog_id IS NULL THEN 'Vídeo aguardando revalidação' ELSE title END,author=CASE WHEN catalog_id IS NULL THEN 'YouTube' ELSE author END,duration_ms=NULL,metadata_updated_at=NULL WHERE video_id IS NOT NULL AND metadata_updated_at<now()-interval '30 days'",
   );
   for (const row of await query(
     "SELECT user_id FROM deletion_requests WHERE state='pending'",

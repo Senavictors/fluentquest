@@ -51,6 +51,11 @@ export const sources = pgTable("sources", {
   transcriptionCompletedAt: timestamp("transcription_completed_at", {
     withTimezone: true,
   }),
+  // TASK-020 / ADR-009 (migração 008): atribuição de letra vinda de catálogo.
+  catalogProvider: text("catalog_provider"),
+  catalogId: text("catalog_id"),
+  catalogDurationMs: integer("catalog_duration_ms"),
+  catalogMeta: jsonb("catalog_meta"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

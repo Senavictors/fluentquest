@@ -15,6 +15,9 @@ import {
   lyricsGetUrl,
   lyricsRecord,
   lyricsSummary,
+  lyricsImportInput,
+  lyricsSegments,
+  LYRICS_RIGHTS,
 } from "../src/domain/content";
 import { initialCard, scheduleCard, xpLevel } from "../src/domain/review";
 import { tokenCostMicros, budgetPeriod } from "../src/server/budget";
@@ -505,5 +508,75 @@ describe("Catálogo de letras LRCLIB (TASK-019)", () => {
       album: null,
       durationMs: null,
     });
+  });
+});
+
+describe("Música como fonte (TASK-020)", () => {
+  const base = {
+    id: 7,
+    trackName: "Green Build",
+    artistName: "The Linters",
+    albumName: null,
+    duration: 12,
+    instrumental: false,
+    plainLyrics: "The build is green again\nShip it before lunch",
+    syncedLyrics:
+      "[00:01.50] The build is green again\n[00:04.00] Ship it before lunch",
+  };
+  it("entrada aceita só ID do catálogo, idioma e link opcional; nunca texto nem direitos", () => {
+    const parsed = lyricsImportInput.parse({
+      catalogId: "7",
+      text: "forjado",
+      rights: "owned",
+      videoUrl: "",
+    });
+    expect(parsed).toEqual({
+      catalogId: 7,
+      language: "en-US",
+      videoUrl: undefined,
+    });
+    expect(LYRICS_RIGHTS).toBe("third_party");
+    for (const catalogId of [0, -1, "x", "../1", 1.5])
+      expect(() => lyricsImportInput.parse({ catalogId })).toThrow();
+    expect(() =>
+      lyricsImportInput.parse({ catalogId: 7, language: "xx-XX" }),
+    ).toThrow();
+  });
+  it("letra sincronizada vira trechos com tempo aproximado (RN-01)", () => {
+    expect(lyricsSegments(lyricsRecord.parse(base))).toEqual([
+      {
+        startMs: 1500,
+        endMs: 4000,
+        text: "The build is green again",
+        timeAccuracy: "approximate",
+      },
+      {
+        startMs: 4000,
+        endMs: null,
+        text: "Ship it before lunch",
+        timeAccuracy: "approximate",
+      },
+    ]);
+  });
+  it("só texto simples entra sem tempo; sincronizada inválida cai para o texto simples (RN-01)", () => {
+    for (const syncedLyrics of [null, "[00:61.00] bad\n[00:62.00] worse"])
+      for (const segment of lyricsSegments(
+        lyricsRecord.parse({ ...base, syncedLyrics }),
+      ))
+        expect(segment).toMatchObject({
+          startMs: null,
+          endMs: null,
+          timeAccuracy: "none",
+        });
+  });
+  it("instrumental ou sem letra é LYRICS_EMPTY (RN-06)", () => {
+    for (const record of [
+      { ...base, instrumental: true },
+      { ...base, plainLyrics: null, syncedLyrics: null },
+      { ...base, plainLyrics: "  ", syncedLyrics: "" },
+    ])
+      expect(() => lyricsSegments(lyricsRecord.parse(record))).toThrow(
+        expect.objectContaining({ code: "LYRICS_EMPTY" }),
+      );
   });
 });

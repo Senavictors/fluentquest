@@ -784,6 +784,230 @@ try {
     Object.assign(lyricsCatalog, originalLyrics);
     delete process.env.LYRICS_CATALOG_ENABLED;
   }
+  // TASK-020 / ADR-009: música como fonte, sempre com o fetch simulado. O
+  // fixture é letra autoral; o registro "plain" só tem texto simples e o
+  // "instrumental" não tem letra.
+  const songCalls: string[] = [];
+  const songRecords: Record<string, unknown> = {
+    "5001": lyricsFixture,
+    "5002": {
+      ...lyricsFixture,
+      id: 5002,
+      trackName: "Plain Build",
+      syncedLyrics: null,
+    },
+    "5003": {
+      ...lyricsFixture,
+      id: 5003,
+      instrumental: true,
+      plainLyrics: null,
+      syncedLyrics: null,
+    },
+    "5004": { ...lyricsFixture, id: 5004, trackName: "Clip Build" },
+    "5005": { ...lyricsFixture, id: 5005, trackName: "Taken Clip" },
+  };
+  Object.assign(
+    lyricsCatalog,
+    createLyricsCatalog(async (input) => {
+      const catalogId = new URL(String(input)).pathname.split("/").pop()!;
+      songCalls.push(catalogId);
+      return songRecords[catalogId]
+        ? Response.json(songRecords[catalogId])
+        : new Response("{}", { status: 404 });
+    }),
+  );
+  const originalSongGet = youtube.get;
+  process.env.LYRICS_CATALOG_ENABLED = "true";
+  try {
+    const song = await request("sources/lyrics", "POST", {
+      catalogId: 5001,
+      language: "en-US",
+    });
+    assert.equal(song.status, 201);
+    const songSource = (
+      await query("SELECT * FROM sources WHERE id=$1", [song.data.sourceId])
+    )[0];
+    assert.equal(songSource.kind, "text");
+    assert.equal(songSource.title, "Green Build");
+    assert.equal(songSource.author, "The Linters");
+    assert.equal(songSource.rights, "third_party");
+    assert.equal(songSource.catalog_provider, "lrclib");
+    assert.equal(songSource.catalog_id, "5001");
+    assert.equal(songSource.catalog_duration_ms, 183000);
+    assert.deepEqual(songSource.catalog_meta, {
+      track: "Green Build",
+      artist: "The Linters",
+      album: "Fixtures",
+      synced: true,
+    });
+    const songSegments = await query(
+      "SELECT start_ms,end_ms,text,origin,time_accuracy,quality_status FROM segments WHERE source_id=$1 ORDER BY ordinal",
+      [song.data.sourceId],
+    );
+    assert.deepEqual(songSegments, [
+      {
+        start_ms: 1500,
+        end_ms: 4000,
+        text: "The build is green again",
+        origin: "lyrics_catalog",
+        time_accuracy: "approximate",
+        quality_status: "community_unreviewed",
+      },
+      {
+        start_ms: 4000,
+        end_ms: null,
+        text: "Ship it before lunch",
+        origin: "lyrics_catalog",
+        time_accuracy: "approximate",
+        quality_status: "community_unreviewed",
+      },
+    ]);
+    const plain = await request("sources/lyrics", "POST", {
+      catalogId: 5002,
+      language: "en-GB",
+    });
+    assert.equal(plain.status, 201);
+    const plainRows = await query(
+      "SELECT s.language,g.start_ms,g.time_accuracy FROM segments g JOIN sources s ON s.id=g.source_id WHERE s.id=$1",
+      [plain.data.sourceId],
+    );
+    assert.ok(
+      plainRows.every(
+        (row) =>
+          row.language === "en-GB" &&
+          row.start_ms === null &&
+          row.time_accuracy === "none",
+      ),
+    );
+    ok(
+      "Música importada grava fonte, trechos e atribuição com proveniência própria (TASK-020 CA-01)",
+    );
+    const callsBeforeRepeat = songCalls.length;
+    const repeat = await request("sources/lyrics", "POST", {
+      catalogId: 5001,
+    });
+    assert.equal(repeat.status, 409);
+    assert.equal(repeat.data.code, "SOURCE_EXISTS");
+    assert.equal(repeat.data.sourceId, song.data.sourceId);
+    assert.equal(songCalls.length, callsBeforeRepeat);
+    assert.equal(
+      (
+        await query(
+          "SELECT count(*)::int AS n FROM sources WHERE catalog_id='5001'",
+        )
+      )[0].n,
+      1,
+    );
+    ok(
+      "Reimportar o mesmo catalog_id não duplica nem chama o LRCLIB (TASK-020 CA-03)",
+    );
+    const sourcesBeforeEmpty = (
+      await query("SELECT count(*)::int AS n FROM sources")
+    )[0].n;
+    const empty = await request("sources/lyrics", "POST", { catalogId: 5003 });
+    assert.equal(empty.status, 422);
+    assert.equal(empty.data.code, "LYRICS_EMPTY");
+    const missingSong = await request("sources/lyrics", "POST", {
+      catalogId: 5999,
+    });
+    assert.equal(missingSong.data.code, "LYRICS_NOT_FOUND");
+    assert.equal(
+      (
+        await request("sources/lyrics", "POST", {
+          catalogId: 5004,
+          videoUrl: "https://evil.example/watch?v=abcdefghijk",
+        })
+      ).data.code,
+      "INVALID_URL",
+    );
+    assert.equal(
+      (await query("SELECT count(*)::int AS n FROM sources"))[0].n,
+      sourcesBeforeEmpty,
+    );
+    ok(
+      "Instrumental, ID inexistente e link inválido não gravam nada (TASK-020 RN-06, CA-02)",
+    );
+    process.env.YOUTUBE_API_KEY = "fixture-only";
+    youtube.get = async () => ({
+      title: "Official clip title",
+      author: "Clip channel",
+      durationMs: 184000,
+      available: true,
+    });
+    const clip = await request("sources/lyrics", "POST", {
+      catalogId: 5004,
+      videoUrl: "https://www.youtube.com/watch?v=lyricsclip1",
+    });
+    assert.equal(clip.status, 201);
+    await prepare(clip.data.jobId);
+    const clipSource = (
+      await query("SELECT * FROM sources WHERE id=$1", [clip.data.sourceId])
+    )[0];
+    assert.equal(clipSource.kind, "youtube");
+    assert.equal(clipSource.video_id, "lyricsclip1");
+    assert.equal(clipSource.title, "Clip Build");
+    assert.equal(clipSource.author, "The Linters");
+    assert.equal(clipSource.duration_ms, 184000);
+    assert.equal(clipSource.status, "text_ready");
+    await query(
+      "UPDATE sources SET metadata_updated_at=now()-interval '31 days' WHERE id=$1",
+      [clip.data.sourceId],
+    );
+    await maintenance();
+    const revalidated = (
+      await query("SELECT title,author FROM sources WHERE id=$1", [
+        clip.data.sourceId,
+      ])
+    )[0];
+    assert.deepEqual(revalidated, {
+      title: "Clip Build",
+      author: "The Linters",
+    });
+    const taken = await request("sources", "POST", {
+      ...videoInput,
+      url: "https://youtu.be/lyricsclip2",
+    });
+    const takenClip = await request("sources/lyrics", "POST", {
+      catalogId: 5005,
+      videoUrl: "https://youtu.be/lyricsclip2",
+    });
+    assert.equal(takenClip.status, 409);
+    assert.equal(takenClip.data.sourceId, taken.data.sourceId);
+    ok(
+      "Música com clipe vira kind=youtube e mantém faixa e artista do catálogo após metadados e revalidação (TASK-020 CA-02)",
+    );
+    const locked = await request(
+      `sources/${song.data.sourceId}/segments`,
+      "POST",
+      { text: "My own line", rights: "owned" },
+    );
+    assert.equal(locked.status, 409);
+    assert.equal(locked.data.code, "CATALOG_SOURCE_LOCKED");
+    assert.equal(
+      (
+        await query("SELECT rights FROM sources WHERE id=$1", [
+          song.data.sourceId,
+        ])
+      )[0].rights,
+      "third_party",
+    );
+    const exported = (await request("account/export")).data;
+    assert.equal(
+      exported.segments.some(
+        (segment: { source_id: string }) =>
+          segment.source_id === song.data.sourceId,
+      ),
+      false,
+    );
+    ok(
+      "Letra do catálogo não aceita legenda anexada nem entra na exportação (TASK-020)",
+    );
+  } finally {
+    Object.assign(lyricsCatalog, originalLyrics);
+    youtube.get = originalSongGet;
+    delete process.env.LYRICS_CATALOG_ENABLED;
+    delete process.env.YOUTUBE_API_KEY;
+  }
   await request("profile", "PATCH", { explanationLanguage: "es-ES" });
   assert.equal((await request("bootstrap")).data.profile.locale, "es-ES");
   await request("profile", "PATCH", { explanationLanguage: "pt-BR" });

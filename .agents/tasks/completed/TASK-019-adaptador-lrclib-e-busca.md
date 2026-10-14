@@ -71,7 +71,7 @@ Host fixo é a defesa contra SSRF (Constituição). Sem segredo envolvido.
 ## Estratégia de testes
 - [x] Unitários: schema, montagem da URL, mapeamento de erros.
 - [x] Integração: cenários com o adaptador simulado (sucesso, 429, 404, desligado). **Nenhuma chamada real ao LRCLIB em teste.**
-- [ ] Manual: uma busca real com o catálogo ligado.
+- [x] Manual: uma busca real com o catálogo ligado (2026-10-14, autorizada pelo proprietário).
 
 ## Riscos e rollback
 Mudança de formato do LRCLIB (schema falha de forma honesta). Rollback: `LYRICS_CATALOG_ENABLED=false`.
@@ -96,7 +96,7 @@ Mudança de formato do LRCLIB (schema falha de forma honesta). Rollback: `LYRICS
 ### Divergências
 - Nenhuma em relação às regras de negócio. O status de "catálogo ligado" **não** entrou em `integrations` do bootstrap: a aba da TASK-021 precisa dele (RN-02 de lá), e o contrato do bootstrap muda nessa task, junto com a tela.
 ### Pendências
-- **Busca real (manual) não feita**: depende de autorização explícita do proprietário para a primeira chamada real ao LRCLIB.
+- Nenhuma. Busca real feita em 2026-10-14 com autorização do proprietário: **uma** chamada `GET https://lrclib.net/api/search?q=drake not you too`, catálogo ligado só naquele processo, nada gravado. 498 ms, 20 resultados, todos passaram em `lyricsRecord`, todos com letra sincronizada. Achado para a TASK-021: o catálogo traz muitas versões quase iguais da mesma faixa ("Not You Too", "Not You Too (Audio) ft. Chris Brown", artista "Drake - Topic"…), com duração entre 269 e 271 s — a lista precisa deixar a escolha clara.
 
 ## Validação
 `npm run typecheck` · `npm test` · `npm run test:integration`

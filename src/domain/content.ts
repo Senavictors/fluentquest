@@ -326,6 +326,47 @@ export function lyricsSummary(record: LyricsRecord) {
   };
 }
 export type LyricsSummary = ReturnType<typeof lyricsSummary>;
+// TASK-020 / ADR-009: importar música. O cliente manda só o ID do catálogo —
+// nunca o texto da letra —, então título, artista e trechos vêm do adaptador
+// e a atribuição não pode ser forjada. `rights` não é campo de entrada: letra
+// do catálogo é sempre `LYRICS_RIGHTS`.
+export const LYRICS_RIGHTS = "third_party";
+export const lyricsImportInput = z.object({
+  catalogId: lyricsCatalogId,
+  language: z.enum(SUPPORTED_LANGUAGES).default("en-US"),
+  videoUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .transform((value) => value || undefined),
+});
+// RN-01: tempo só quando a letra veio sincronizada; texto simples nunca ganha
+// sincronização. Letra sincronizada que não passa no parser cai para o texto
+// simples do mesmo registro, sem tempo, em vez de inventar alinhamento.
+export function lyricsSegments(record: LyricsRecord): SegmentInput[] {
+  const synced = record.syncedLyrics?.trim();
+  const plain = record.plainLyrics?.trim();
+  if (record.instrumental || (!synced && !plain))
+    throw new AppError(
+      "LYRICS_EMPTY",
+      "Esse registro do LRCLIB não tem letra para estudar (instrumental ou vazio).",
+    );
+  if (synced)
+    try {
+      const segments = parseContent(synced);
+      if (segments.every((s) => s.timeAccuracy === "approximate"))
+        return segments;
+    } catch (error) {
+      if (!plain || !(error instanceof AppError)) throw error;
+    }
+  return parseContent(plain || synced!).map((segment) => ({
+    ...segment,
+    startMs: null,
+    endMs: null,
+    timeAccuracy: "none",
+  }));
+}
 export const MAX_VIDEO_TRANSCRIPTION_MS = 15 * 60 * 1000;
 export function validateVideoTranscriptionDuration(durationMs: number) {
   if (!Number.isSafeInteger(durationMs) || durationMs <= 0)
