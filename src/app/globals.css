@@ -1259,6 +1259,19 @@ label.search {
     width: auto;
     max-width: 100%;
   }
+  /* TASK-022: a barra da letra não pode tirar o vídeo da moldura. Nesta faixa
+     ela fica numa linha — a ajuda fixa sai da tela, mas continua ligada aos
+     botões por aria-describedby, e o aviso de pausa continua visível — e o
+     piso da coluna cresce na medida da barra. */
+  .study-media:has(.karaoke-toolbar) {
+    min-height: 240px;
+  }
+  .karaoke-toolbar {
+    padding: 8px 0;
+  }
+  .karaoke-toolbar small.quiet:not(.hold) {
+    display: none;
+  }
 }
 /* Vídeo ao lado do texto — o arranjo de transmissão ao vivo — apenas quando a
    coluna de conteúdo comporta as duas sem espremer a medida de leitura. Com a

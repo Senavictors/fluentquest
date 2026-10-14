@@ -77,7 +77,7 @@ Nenhum ponto novo.
 ## Estratégia de testes
 - [x] Unitários: `activeSegmentAt` (antes do primeiro verso, entre versos, depois do último, com deslocamento).
 - [x] Integração: `PATCH` com `timeOffsetMs` válido e fora do limite.
-- [ ] Manual: tocar uma música real com clipe e ajustar o deslocamento.
+- [x] Manual: tocar uma música real com clipe (2026-10-14, autorizado pelo proprietário; ver Validação).
 
 ## Riscos e rollback
 Custo de CPU do intervalo de 200 ms (só ativo durante reprodução de música). Rollback: voltar o intervalo para 1000 ms e esconder o acompanhamento.
@@ -102,10 +102,12 @@ Custo de CPU do intervalo de 200 ms (só ativo durante reprodução de música).
 - Rolagem com `block: "nearest"`: acompanha sem pular a página inteira a cada verso.
 - Deslocamento em passos de 0,5 s é regra da tela (`stepTimeOffset`); o servidor aceita qualquer inteiro no intervalo.
 ### Divergências
+- **Correção pós-entrega (2026-10-14), achada no teste real:** na faixa empilhada (1001–1239 px) a coluna do vídeo tem piso de 180 px; barra do player (73 px) + barra da letra (165 px, ajuda em duas linhas) passavam disso e o iframe colapsava para 0×0 (visto em 1027×502). Agora, nessa faixa, a barra da letra fica numa linha (a ajuda fixa sai da tela mas segue em `aria-describedby`; o aviso de pausa continua visível, classe `hold`) e `.study-media:has(.karaoke-toolbar)` tem piso de 240 px. Em 1100×700 o vídeo passou de 0 para 175×99.
 - Tocou `src/client/Settings.tsx` (texto dos atalhos) e `DESIGN.md`, para cumprir CA-05 ("K documentado junto de R, T e C").
 - CA-01 foi medido com player simulado (relógio próprio), não com o clipe real: reprodução real do YouTube em navegador headless é instável e não permite medir latência. A lógica medida (consulta de 200 ms → `activeSegmentIndex` → destaque) é a de produção.
 ### Pendências
-- **Teste manual com música e clipe reais** (estratégia de testes): depende de autorização do proprietário para chamadas reais ao LRCLIB (busca + obtenção) e de reprodução real do YouTube.
+- Ajuste de deslocamento com música real não foi necessário nem conferido de ouvido: o verso acende no instante que o LRC declara, mas se a letra *soa* no mesmo instante só o proprietário pode julgar ouvindo.
+- Faixa empilhada (1001–1239 px) em janela baixa: com a barra da letra, o vídeo fica pequeno (175×99 em 1100×700) e a transcrição mostra ~1 verso. Já era o limite desse arranjo; o modo cinema, que resolveria, só existe acima de 1240 px.
 
 ## Validação
 `npm run typecheck` · `npm test` · `npm run test:integration` · `node scripts/accessibility-qa.mjs`
@@ -118,3 +120,11 @@ Resultados de 2026-10-14:
 - `npx tsx --env-file=.env.local scripts/qa-isolated.ts` (QA completo, rodado de novo depois do último ajuste de tela): `browser-qa` sem erros/overflow; `accessibility-qa` com `violations: []` nas 9 rotas; `source-qa` com 0 violações nas 4 variantes; `song-qa` com 0 violações e sem overflow em 14 varreduras, incluindo karaokê em 1440/390 × claro/escuro e no cinema. Latência medida do destaque (CA-01): 119 ms, 13 ms e 117 ms (com +1,0 s) após o início declarado do verso. Deslocamento +1,0 s persistiu após recarregar (CA-02). A–B voltou ao trecho deslocado (6,4 s, dentro de 5,0–8,25 s) e o cinema abriu com a barra da letra (CA-03). Vídeo com legenda pública não mostrou a barra nem o atalho K (CA-04). Nenhuma chamada real ao LRCLIB.
 
 ## Handoff
+
+### Validação real — 2026-10-14 (autorizada pelo proprietário)
+- `LYRICS_CATALOG_ENABLED=true` em `.env.local`. Importação pela aba "Música" com `npm run dev`, no navegador embutido.
+- Busca real: as duas primeiras tentativas receberam **503 do LRCLIB** (uma requisição cada, nenhuma nova tentativa automática; a tela mostrou "respondeu com erro 503. Tente de novo mais tarde."). Uma chamada de diagnóstico fora do Next respondeu 200 logo depois, e a terceira tentativa pela tela também — instabilidade passageira do LRCLIB, não defeito do adaptador.
+- Versão escolhida: LRCLIB `37735743`, "Not You Too (Audio) ft. Chris Brown", álbum igual ao título do vídeo oficial, 4:30. Vídeo: upload oficial de áudio do canal do Drake (`ZX_mvoY_Hg0`, OVO/Republic); não existe clipe com imagem.
+- No banco: `kind=youtube`, `rights=third_party`, título/autor do catálogo, `catalog_provider=lrclib`, `catalog_id=37735743`, `catalog_duration_ms=270000`, 66 trechos `lyrics_catalog`/`community_unreviewed`/`approximate` com `start_ms` estritamente crescente.
+- Reprodução real (1366×768): nada aceso até 0:10; o primeiro verso acendeu em 0:10, o seguinte em 0:15 e o próximo em 0:19, acompanhando o relógio do player conforme o LRC. Biblioteca: autor "Drake" e "Letra (LRCLIB)".
+

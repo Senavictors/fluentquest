@@ -80,6 +80,9 @@ TASK-018 (domínio, sem rede) → TASK-019 (adaptador e rota de busca) → TASK-
 - Importar `Not You Too` pelo fluxo novo gera trechos com `start_ms` crescente, origem `lyrics_catalog` e rótulo correto na tela.
 - `docs/API.md` lista as rotas novas; `scripts/integration.ts` cobre busca com o adaptador simulado, `429` e catálogo desligado — **sem chamada real ao LRCLIB nos testes**.
 
+### Resultado (2026-10-14)
+Implementado nas TASK-018 a 022. Validação real com autorização do proprietário: "Not You Too" importada pelo fluxo novo (LRCLIB `37735743` + vídeo oficial `ZX_mvoY_Hg0`), 66 trechos com `start_ms` crescente, origem `lyrics_catalog`, rótulo na tela, e verso acompanhando a reprodução real. O LRCLIB devolveu 503 duas vezes antes de responder — o erro honesto sem nova tentativa funcionou como previsto. `docs/API.md` lista as rotas; `scripts/integration.ts` cobre busca simulada, 429 e catálogo desligado.
+
 ## Revisão
 
 Quando o app passar a ter mais de um usuário, quando o LRCLIB passar a exigir chave, ou em 2027-04-14 — o que vier primeiro.

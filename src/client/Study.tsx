@@ -1562,7 +1562,10 @@ export function Study({ sourceId }: { sourceId: string }) {
                     {formatTimeOffset(offsetMs)}
                   </output>
                 </span>
-                <small id="offset-help" className="quiet">
+                <small
+                  id="offset-help"
+                  className={followHold ? "quiet hold" : "quiet"}
+                >
                   {followHold
                     ? "Acompanhamento pausado no trecho que você escolheu; volta quando você der play."
                     : "Tempo aproximado, da comunidade. Positivo: a letra acende depois; negativo, antes."}
