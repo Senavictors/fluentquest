@@ -145,3 +145,5 @@ Pedido do proprietário com print de produção. A barra lateral já recolhia pa
 
 Com autorização do proprietário: push da `main` até `7d87dfe` e deploy no Railway (deployment `21fe1b86`, SUCCESS), disparado pelo agente do Railway porque push não faz deploy e a CLI não está instalada. Migrações 008 e 009 aplicadas no pré-deploy; produção serve o código novo (verificado pelo bundle público). Pendências de configuração em produção, que dependem do proprietário: `LYRICS_CATALOG_ENABLED` não definida (aba "Música" desligada) e `FQ_SETUP_TOKEN` ainda definida (ADR-008 pede remover). A fonte antiga "Drake - Not You Too" continua como "Material próprio" em produção; reimportar pela aba "Música" é decisão do proprietário. Detalhe em `docs/architecture/deployment.md`.
 
+Ainda em 14/10, com autorização do proprietário: `LYRICS_CATALOG_ENABLED=true` definida e `FQ_SETUP_TOKEN` removida no Railway, numa só mudança (deployment `2730514b`, SUCCESS). A aba "Música" funciona em produção; o primeiro acesso está fechado (`/api/setup` → `open:false`).
+
