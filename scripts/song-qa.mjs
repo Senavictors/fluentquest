@@ -154,8 +154,246 @@ try {
     page.getByRole("button", { name: "Texto ou legenda", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page.unroute("**/api/bootstrap");
-  await page.goto(`${base}/configuracoes`);
-  await page.getByRole("button", { name: "Claro", exact: true }).click();
+  // TASK-022 / ADR-009: modo karaokê. Só o script da API do player do YouTube
+  // é trocado, neste navegador de teste, por um player simulado com relógio
+  // próprio — reprodução real em navegador headless é instável e não daria
+  // para medir a latência do verso (CA-01). Tela, rota e banco são os reais.
+  const fakeYouTube = `(() => {
+    class Player {
+      constructor(el, options) {
+        this.options = options;
+        this.at = (options.playerVars && options.playerVars.start) || 0;
+        this.base = 0;
+        this.playing = false;
+        const frame = document.createElement("iframe");
+        frame.title = "Player simulado do YouTube";
+        frame.srcdoc = "<p>player simulado</p>";
+        el.replaceWith(frame);
+        window.__fakePlayer = this;
+        setTimeout(() => options.events.onReady({ target: this }), 0);
+      }
+      emit(data) {
+        if (this.options.events.onStateChange)
+          this.options.events.onStateChange({ data });
+      }
+      getCurrentTime() {
+        return this.playing
+          ? this.at + (performance.now() - this.base) / 1000
+          : this.at;
+      }
+      playVideo() {
+        if (this.playing) return;
+        this.base = performance.now();
+        this.playing = true;
+        this.emit(1);
+      }
+      pauseVideo() {
+        if (!this.playing) return;
+        this.at = this.getCurrentTime();
+        this.playing = false;
+        this.emit(2);
+      }
+      seekTo(seconds) {
+        this.at = seconds;
+        this.base = performance.now();
+        if (this.playing) {
+          this.emit(3);
+          this.emit(1);
+        }
+      }
+      setPlaybackRate() {}
+      getAvailablePlaybackRates() {
+        return [1];
+      }
+      destroy() {}
+    }
+    window.YT = { Player };
+    if (window.onYouTubeIframeAPIReady) window.onYouTubeIframeAPIReady();
+  })();`;
+  await page.route("https://www.youtube.com/iframe_api", (route) =>
+    route.fulfill({ contentType: "text/javascript", body: fakeYouTube }),
+  );
+  const setTheme = async (theme) => {
+    await page.goto(`${base}/configuracoes`);
+    await page
+      .getByRole("button", {
+        name: theme === "light" ? "Claro" : "Escuro",
+        exact: true,
+      })
+      .click();
+    await page.waitForFunction(
+      (value) => document.documentElement.dataset.theme === value,
+      theme,
+    );
+  };
+  // Tempo, em ms do relógio do player, até o verso `text` acender. Começa do
+  // zero, parado, sem verso aceso.
+  const timeUntil = (text) =>
+    page.evaluate(
+      (expected) =>
+        new Promise((resolve, reject) => {
+          const player = window.__fakePlayer;
+          player.pauseVideo();
+          player.seekTo(0);
+          const lit = () => document.querySelector('[aria-current="time"]');
+          const started = performance.now();
+          const waitDark = () => {
+            if (lit()) {
+              if (performance.now() - started > 3000)
+                return reject(new Error("verso continuou aceso parado"));
+              return requestAnimationFrame(waitDark);
+            }
+            const t0 = performance.now();
+            player.playVideo();
+            const check = () => {
+              if (lit()?.textContent.includes(expected))
+                return resolve(performance.now() - t0);
+              if (performance.now() - t0 > 15000)
+                return reject(new Error(`verso não acendeu: ${expected}`));
+              requestAnimationFrame(check);
+            };
+            check();
+          };
+          waitDark();
+        }),
+      text,
+    );
+  const within = (label, value, min, max) => {
+    if (value < min || value > max)
+      throw new Error(
+        `${label}: ${Math.round(value)} ms fora de ${min}–${max}`,
+      );
+    return Math.round(value);
+  };
+  await setTheme("light");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await openSongTab();
+  await page.getByLabel("Buscar música").fill("deploy friday");
+  await expect(page.getByText("1 versão encontrada.")).toBeVisible();
+  await page.getByRole("radio", { name: /^Deploy Friday/ }).check();
+  await page
+    .getByLabel("Link do clipe oficial no YouTube (opcional)")
+    .fill("https://www.youtube.com/watch?v=karaokeqa01");
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Adicionar à biblioteca" }).click();
+  await page.waitForURL(/\/estudar\//);
+  const karaokeUrl = page.url().split("?")[0];
+  await page.goto(karaokeUrl);
+  await page.waitForFunction(() => window.__fakePlayer);
+  const followButton = page.getByRole("button", { name: "Acompanhar a letra" });
+  const offset = page.locator(".karaoke-offset output");
+  await expect(followButton).toHaveAttribute("aria-pressed", "true");
+  await expect(offset).toHaveText("0,0 s");
+  await expect(page.getByText(/K: acompanhar/)).toBeVisible();
+  // CA-01: o verso acende sozinho em até ~300 ms do início declarado.
+  const latency = {
+    first: within(
+      "1º verso",
+      await timeUntil("Deploy on a Friday"),
+      1500,
+      1800,
+    ),
+    second: within(
+      "2º verso",
+      await timeUntil("Pager on my pillow"),
+      4000,
+      4300,
+    ),
+  };
+  // RN-04 / CA-02: +1,0 s atrasa o verso e persiste ao reabrir.
+  await page.getByRole("button", { name: "+0,5 s" }).click();
+  await page.getByRole("button", { name: "+0,5 s" }).click();
+  await expect(offset).toHaveText("+1,0 s");
+  latency.shifted = within(
+    "1º verso com +1,0 s",
+    await timeUntil("Deploy on a Friday"),
+    2500,
+    2800,
+  );
+  await page.waitForTimeout(500);
+  await page.goto(karaokeUrl);
+  await page.waitForFunction(() => window.__fakePlayer);
+  await expect(offset).toHaveText("+1,0 s");
+  // RN-03: K desliga e religa; desligado, nenhum verso fica aceso.
+  await page.locator(".study-heading h1").click();
+  await page.keyboard.press("k");
+  await expect(followButton).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator('[aria-current="time"]')).toHaveCount(0);
+  await page.keyboard.press("k");
+  await expect(followButton).toHaveAttribute("aria-pressed", "true");
+  // RN-03: clicar num trecho pausa o acompanhamento até a próxima reprodução.
+  await page.evaluate(() => window.__fakePlayer.playVideo());
+  await expect(page.locator('[aria-current="time"]')).toHaveCount(1, {
+    timeout: 4000,
+  });
+  await page
+    .locator(".segment-select", { hasText: "Rollback before sunrise" })
+    .click();
+  await expect(page.getByText(/Acompanhamento pausado/)).toBeVisible();
+  await expect(page.locator('[aria-current="time"]')).toHaveCount(0);
+  await page.evaluate(() => {
+    window.__fakePlayer.pauseVideo();
+    window.__fakePlayer.playVideo();
+  });
+  await expect(page.getByText(/Acompanhamento pausado/)).toHaveCount(0);
+  await expect(page.locator('[aria-current="time"]')).toHaveCount(1, {
+    timeout: 2000,
+  });
+  // CA-03: A–B continua prendendo o trecho, agora com o deslocamento.
+  await page
+    .locator(".segment-select", { hasText: "Pager on my pillow" })
+    .click();
+  await page.getByRole("button", { name: "A–B" }).click();
+  const looped = await page.evaluate(async () => {
+    const player = window.__fakePlayer;
+    player.seekTo(8.0);
+    player.playVideo();
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return player.getCurrentTime();
+  });
+  if (looped < 5 || looped > 8.25)
+    throw new Error(`A–B não voltou ao trecho deslocado: ${looped}s`);
+  await page.getByRole("button", { name: "A–B" }).click();
+  await page.evaluate(() => window.__fakePlayer.pauseVideo());
+  // CA-03: o modo cinema continua abrindo, com a barra da letra.
+  await page.keyboard.press("c");
+  await expect(page.locator(".study.cinema")).toHaveCount(1);
+  await expect(followButton).toBeVisible();
+  await scan("karaoke-cinema", "light", 1440);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".study.cinema")).toHaveCount(0);
+  for (const theme of ["light", "dark"]) {
+    await setTheme(theme);
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+      await page.goto(karaokeUrl);
+      await page.waitForFunction(() => window.__fakePlayer);
+      await page.evaluate(() => {
+        window.__fakePlayer.seekTo(5.2);
+        window.__fakePlayer.playVideo();
+      });
+      await expect(page.locator('[aria-current="time"]')).toContainText(
+        "Pager on my pillow",
+      );
+      await page.evaluate(() => window.__fakePlayer.pauseVideo());
+      await scan("karaoke-sala", theme, width);
+      await page.screenshot({
+        path: `.impeccable/review/karaoke-${theme}-${width}.png`,
+        fullPage: true,
+      });
+    }
+  }
+  // CA-04: vídeo com legenda que não é letra do catálogo não muda.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${base}/estudar/${process.env.FQ_QA_SOURCE_ID}`);
+  await page.locator(".study").waitFor();
+  await expect(
+    page.getByRole("button", { name: "Acompanhar a letra" }),
+  ).toHaveCount(0);
+  await expect(page.getByText(/K: acompanhar/)).toHaveCount(0);
+  await page.unroute("https://www.youtube.com/iframe_api");
+  console.log(JSON.stringify({ karaokeLatencyMs: latency, loopedAt: looped }));
+  await setTheme("light");
   await writeFile(
     ".impeccable/review/song-results.json",
     JSON.stringify({ results, errors }, null, 2),

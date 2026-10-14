@@ -19,6 +19,8 @@ export interface Source {
   // TASK-020 / ADR-009: atribuição de letra do catálogo.
   catalog_provider?: string | null;
   catalog_id?: string | null;
+  // TASK-022: deslocamento da letra em relação ao clipe (migração 009).
+  time_offset_ms?: number;
 }
 export interface TranscriptionEstimate {
   available: boolean;

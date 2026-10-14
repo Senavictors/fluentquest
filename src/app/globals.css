@@ -1402,6 +1402,10 @@ label.search {
     padding: 11px 0 0;
     border-bottom: 0;
   }
+  .study.cinema .karaoke-toolbar {
+    padding: 8px 0 0;
+    border-bottom: 0;
+  }
   /* Ler a transcrição de longe, acompanhando o vídeo, pede um corpo maior que o
      da leitura de perto. */
   .study.cinema .segment-select {
@@ -1541,6 +1545,40 @@ label.search {
 .segment.active {
   background: var(--accent-soft);
   border-radius: 2px;
+}
+/* TASK-022: o verso que está tocando. Fio à esquerda e texto em destaque —
+   distinto da seleção (fundo), porque os dois podem coexistir em versos
+   diferentes. */
+.segment.playing {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.segment.playing .segment-select > span[lang] {
+  color: var(--accent);
+}
+.karaoke-toolbar {
+  display: flex;
+  gap: 8px 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.karaoke-toolbar button {
+  font-size: 12px;
+  padding: 8px 10px;
+}
+.karaoke-offset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.karaoke-offset output {
+  min-width: 52px;
+  font-variant-numeric: tabular-nums;
+}
+.karaoke-toolbar small {
+  flex-basis: 100%;
 }
 .segment-select {
   display: flex;

@@ -1005,6 +1005,72 @@ try {
     ok(
       "Letra do catálogo não aceita legenda anexada nem entra na exportação (TASK-020)",
     );
+    // TASK-022 / ADR-009: deslocamento da letra, persistido por fonte, sem
+    // reescrever start_ms.
+    const startsBefore = await query(
+      "SELECT start_ms FROM segments WHERE source_id=$1 ORDER BY ordinal",
+      [clip.data.sourceId],
+    );
+    assert.equal(
+      (await request(`sources/${clip.data.sourceId}`)).data.source
+        .time_offset_ms,
+      0,
+    );
+    const shifted = await request(`sources/${clip.data.sourceId}`, "PATCH", {
+      timeOffsetMs: 1500,
+    });
+    assert.equal(shifted.status, 200);
+    assert.equal(
+      (await request(`sources/${clip.data.sourceId}`)).data.source
+        .time_offset_ms,
+      1500,
+    );
+    assert.deepEqual(
+      await query(
+        "SELECT start_ms FROM segments WHERE source_id=$1 ORDER BY ordinal",
+        [clip.data.sourceId],
+      ),
+      startsBefore,
+    );
+    await request(`sources/${clip.data.sourceId}`, "PATCH", {
+      positionMs: 42000,
+    });
+    const afterPosition = (
+      await query(
+        "SELECT position_ms,time_offset_ms FROM sources WHERE id=$1",
+        [clip.data.sourceId],
+      )
+    )[0];
+    assert.deepEqual(afterPosition, {
+      position_ms: 42000,
+      time_offset_ms: 1500,
+    });
+    ok(
+      "Deslocamento da letra persiste por fonte, sem reescrever start_ms nem a posição (TASK-022 CA-02)",
+    );
+    for (const payload of [
+      { timeOffsetMs: 10001 },
+      { timeOffsetMs: -10001 },
+      { timeOffsetMs: 1.5 },
+      {},
+    ]) {
+      const refused = await request(
+        `sources/${clip.data.sourceId}`,
+        "PATCH",
+        payload,
+      );
+      assert.equal(refused.status, 422);
+      assert.equal(refused.data.code, "INVALID_INPUT");
+    }
+    assert.equal(
+      (
+        await query("SELECT time_offset_ms FROM sources WHERE id=$1", [
+          clip.data.sourceId,
+        ])
+      )[0].time_offset_ms,
+      1500,
+    );
+    ok("Deslocamento fora de −10 s a +10 s é recusado (TASK-022)");
   } finally {
     Object.assign(lyricsCatalog, originalLyrics);
     youtube.get = originalSongGet;

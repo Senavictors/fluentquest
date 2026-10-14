@@ -378,6 +378,58 @@ export function lyricsSegments(record: LyricsRecord): SegmentInput[] {
     timeAccuracy: "none",
   }));
 }
+// TASK-022 / ADR-009: modo karaokê. O deslocamento é por fonte, em passos de
+// 0,5 s entre −10 s e +10 s, e nunca reescreve `start_ms` (RN-04): é somado
+// na hora de comparar com o tempo do player. Positivo = a letra acende depois
+// (clipe com introdução mais longa que a gravação do LRC).
+export const TIME_OFFSET_LIMIT_MS = 10000;
+export const TIME_OFFSET_STEP_MS = 500;
+export const timeOffsetMs = z
+  .number()
+  .int()
+  .min(-TIME_OFFSET_LIMIT_MS, "O deslocamento vai de −10 s a +10 s.")
+  .max(TIME_OFFSET_LIMIT_MS, "O deslocamento vai de −10 s a +10 s.");
+export function stepTimeOffset(current: number, direction: 1 | -1) {
+  return Math.max(
+    -TIME_OFFSET_LIMIT_MS,
+    Math.min(TIME_OFFSET_LIMIT_MS, current + direction * TIME_OFFSET_STEP_MS),
+  );
+}
+// "+1,0 s", "−0,5 s", "0,0 s" — vírgula decimal e sinal tipográfico.
+export function formatTimeOffset(ms: number) {
+  const value = (Math.abs(ms) / 1000).toFixed(1).replace(".", ",");
+  return `${ms > 0 ? "+" : ms < 0 ? "−" : ""}${value} s`;
+}
+// RN-01: só letra do catálogo com tempo declarado acompanha a reprodução.
+export function followsPlayback(
+  segments: readonly { origin: string; time_accuracy: string }[],
+) {
+  return segments.some(
+    (segment) =>
+      segment.origin === "lyrics_catalog" &&
+      segment.time_accuracy === "approximate",
+  );
+}
+// RN-03: trecho ativo = último cujo início deslocado já passou. Devolve -1
+// antes do primeiro verso. Não supõe ordem: com dois versos no mesmo instante,
+// vale o último da lista, como no arquivo LRC.
+export function activeSegmentIndex(
+  starts: readonly (number | null)[],
+  timeMs: number,
+  offsetMs = 0,
+) {
+  let index = -1;
+  let best = -Infinity;
+  starts.forEach((start, i) => {
+    if (start === null) return;
+    const at = start + offsetMs;
+    if (at <= timeMs && at >= best) {
+      best = at;
+      index = i;
+    }
+  });
+  return index;
+}
 export const MAX_VIDEO_TRANSCRIPTION_MS = 15 * 60 * 1000;
 export function validateVideoTranscriptionDuration(durationMs: number) {
   if (!Number.isSafeInteger(durationMs) || durationMs <= 0)

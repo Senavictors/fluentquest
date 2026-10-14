@@ -36,6 +36,19 @@ const records = {
     plainLyrics: null,
     syncedLyrics: null,
   },
+  // TASK-022: faixa importada com clipe, para o modo karaokê.
+  9004: {
+    id: 9004,
+    trackName: "Deploy Friday",
+    artistName: "The Linters",
+    albumName: "Fixtures",
+    duration: 12,
+    instrumental: false,
+    plainLyrics:
+      "Deploy on a Friday\nPager on my pillow\nRollback before sunrise",
+    syncedLyrics:
+      "[00:01.50] Deploy on a Friday\n[00:04.00] Pager on my pillow\n[00:07.25] Rollback before sunrise\n[length:00:12.00]",
+  },
 };
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (input, init) => {
@@ -43,8 +56,19 @@ globalThis.fetch = async (input, init) => {
     typeof input === "string" || input instanceof URL ? input : input.url,
   );
   if (url.hostname !== "lrclib.net") return realFetch(input, init);
-  if (url.pathname === "/api/search")
-    return Response.json(Object.values(records));
+  // Busca simulada: toda palavra do termo precisa aparecer em faixa + artista.
+  if (url.pathname === "/api/search") {
+    const words = (url.searchParams.get("q") || "").toLowerCase().split(/\s+/);
+    return Response.json(
+      Object.values(records).filter((record) =>
+        words.every((word) =>
+          `${record.trackName} ${record.artistName}`
+            .toLowerCase()
+            .includes(word),
+        ),
+      ),
+    );
+  }
   const id = /^\/api\/get\/(\d+)$/.exec(url.pathname)?.[1];
   return id && records[id]
     ? Response.json(records[id])

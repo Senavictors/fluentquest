@@ -56,6 +56,8 @@ export const sources = pgTable("sources", {
   catalogId: text("catalog_id"),
   catalogDurationMs: integer("catalog_duration_ms"),
   catalogMeta: jsonb("catalog_meta"),
+  // TASK-022 / ADR-009 (migração 009): deslocamento da letra, −10 s a +10 s.
+  timeOffsetMs: integer("time_offset_ms").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

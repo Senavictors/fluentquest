@@ -20,6 +20,11 @@ import {
   LYRICS_RIGHTS,
   songDuration,
   lyricsSegmentLabel,
+  activeSegmentIndex,
+  followsPlayback,
+  formatTimeOffset,
+  stepTimeOffset,
+  timeOffsetMs,
 } from "../src/domain/content";
 import { initialCard, scheduleCard, xpLevel } from "../src/domain/review";
 import { tokenCostMicros, budgetPeriod } from "../src/server/budget";
@@ -600,5 +605,61 @@ describe("Aba Música (TASK-021)", () => {
     expect(lyricsSegmentLabel("none")).toBe(
       "Letra da comunidade (LRCLIB), não revisada · sem tempo",
     );
+  });
+});
+
+describe("Modo karaokê (TASK-022)", () => {
+  const starts = [1500, 4000, null, 7250];
+  it("acende o último verso cujo início já passou (RN-03)", () => {
+    expect(activeSegmentIndex(starts, 0)).toBe(-1);
+    expect(activeSegmentIndex(starts, 1499)).toBe(-1);
+    expect(activeSegmentIndex(starts, 1500)).toBe(0);
+    expect(activeSegmentIndex(starts, 3999)).toBe(0);
+    expect(activeSegmentIndex(starts, 4000)).toBe(1);
+    expect(activeSegmentIndex(starts, 7000)).toBe(1);
+    expect(activeSegmentIndex(starts, 999999)).toBe(3);
+    expect(activeSegmentIndex([], 5000)).toBe(-1);
+  });
+  it("aplica o deslocamento sem mexer nos inícios (RN-04)", () => {
+    // +1 s: a letra acende um segundo depois.
+    expect(activeSegmentIndex(starts, 2000, 1000)).toBe(-1);
+    expect(activeSegmentIndex(starts, 2500, 1000)).toBe(0);
+    expect(activeSegmentIndex(starts, 4999, 1000)).toBe(0);
+    // −1 s: um segundo antes.
+    expect(activeSegmentIndex(starts, 3000, -1000)).toBe(1);
+    expect(starts).toEqual([1500, 4000, null, 7250]);
+  });
+  it("versos no mesmo instante: vale o último da lista", () => {
+    expect(activeSegmentIndex([1000, 1000, 3000], 1500)).toBe(1);
+  });
+  it("deslocamento anda em passos de 0,5 s entre −10 s e +10 s", () => {
+    expect(stepTimeOffset(0, 1)).toBe(500);
+    expect(stepTimeOffset(0, -1)).toBe(-500);
+    expect(stepTimeOffset(9800, 1)).toBe(10000);
+    expect(stepTimeOffset(-10000, -1)).toBe(-10000);
+    expect(timeOffsetMs.safeParse(10000).success).toBe(true);
+    expect(timeOffsetMs.safeParse(10001).success).toBe(false);
+    expect(timeOffsetMs.safeParse(-10001).success).toBe(false);
+    expect(timeOffsetMs.safeParse(1.5).success).toBe(false);
+  });
+  it("mostra o deslocamento com sinal e vírgula", () => {
+    expect(formatTimeOffset(1000)).toBe("+1,0 s");
+    expect(formatTimeOffset(-500)).toBe("−0,5 s");
+    expect(formatTimeOffset(0)).toBe("0,0 s");
+  });
+  it("só letra do catálogo com tempo acompanha a música (RN-01, CA-04)", () => {
+    const lyric = { origin: "lyrics_catalog", time_accuracy: "approximate" };
+    expect(followsPlayback([lyric])).toBe(true);
+    expect(
+      followsPlayback([{ origin: "lyrics_catalog", time_accuracy: "none" }]),
+    ).toBe(false);
+    expect(
+      followsPlayback([
+        { origin: "public_caption", time_accuracy: "approximate" },
+        { origin: "user_upload", time_accuracy: "approximate" },
+        { origin: "provider_video_url", time_accuracy: "approximate" },
+      ]),
+    ).toBe(false);
+    expect(followsPlayback([])).toBe(false);
   });
 });

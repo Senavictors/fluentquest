@@ -389,7 +389,8 @@ export function Preferences() {
               }
             />
             <span>
-              Atalhos na sala: R para repetir, T para tradução. Desativados
+              Atalhos na sala: R para repetir, T para tradução, C para o modo
+              cinema e K para a letra acompanhar a música. Desativados
               enquanto você digita.
             </span>
           </label>

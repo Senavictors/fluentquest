@@ -16,6 +16,7 @@ import {
   youtubeId,
   scenarios,
   lyricsSummary,
+  timeOffsetMs,
   lyricsImportInput,
   lyricsSegments,
   LYRICS_RIGHTS,
@@ -748,12 +749,23 @@ export async function handle(request: Request, parts: string[]) {
         );
       }
       if (method === "PATCH" && !action) {
+        // TASK-022 / ADR-009: além da posição, o deslocamento da letra em
+        // relação ao clipe. Os dois são opcionais, mas pelo menos um vem.
         const v = z
-          .object({ positionMs: z.number().int().min(0).max(86400000) })
+          .object({
+            positionMs: z.number().int().min(0).max(86400000).optional(),
+            timeOffsetMs: timeOffsetMs.optional(),
+          })
+          .refine(
+            (value) =>
+              value.positionMs !== undefined ||
+              value.timeOffsetMs !== undefined,
+            "Informe a posição ou o deslocamento.",
+          )
           .parse(await body(request));
         await query(
-          "UPDATE sources SET position_ms=$3,updated_at=now() WHERE id=$1 AND user_id=$2",
-          [id, uid, v.positionMs],
+          "UPDATE sources SET position_ms=coalesce($3,position_ms),time_offset_ms=coalesce($4,time_offset_ms),updated_at=now() WHERE id=$1 AND user_id=$2",
+          [id, uid, v.positionMs ?? null, v.timeOffsetMs ?? null],
         );
         return json({ saved: true });
       }

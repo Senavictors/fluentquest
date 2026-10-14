@@ -40,7 +40,15 @@ import {
   STUDY_LANGUAGE_OPTIONS,
   type SupportedLanguage,
 } from "./languages";
-import { lyricsSegmentLabel, songDuration } from "../domain/content";
+import {
+  activeSegmentIndex,
+  followsPlayback,
+  formatTimeOffset,
+  lyricsSegmentLabel,
+  songDuration,
+  stepTimeOffset,
+  TIME_OFFSET_LIMIT_MS,
+} from "../domain/content";
 // Apoio de um trecho. Quatro blocos que servem momentos diferentes, então
 // descem em ordem de uso: a tradução é o que se procura de relance e vem
 // primeiro; ponto e exemplo explicam; a pergunta é tarefa, não leitura, e por
@@ -820,16 +828,27 @@ function Player({
   selected,
   playerRef,
   onTime,
+  onFollow,
+  onPlay,
 }: {
   source: Source;
   selected: Segment | null;
   playerRef: React.RefObject<YTPlayer | null>;
   onTime: (n: number) => void;
+  // TASK-022 / ADR-009: só para letra que acompanha a música. Presente, o
+  // player consulta o tempo a cada 200 ms enquanto toca — o 1 s de sempre é
+  // lento demais para versos de 2–3 s. Ausente, nada muda.
+  onFollow?: (n: number) => void;
+  onPlay?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null),
     video = useRef<HTMLVideoElement>(null),
-    onTimeRef = useRef(onTime);
+    onTimeRef = useRef(onTime),
+    onFollowRef = useRef(onFollow),
+    onPlayRef = useRef(onPlay);
   onTimeRef.current = onTime;
+  onFollowRef.current = onFollow;
+  onPlayRef.current = onPlay;
   const [error, setError] = useState("");
   useEffect(() => {
     if (source.kind !== "media") return;
@@ -856,6 +875,8 @@ function Player({
     if (!source.video_id || source.status === "unavailable") return;
     let active = true;
     let timer: ReturnType<typeof setInterval> | undefined;
+    let fastTimer: ReturnType<typeof setInterval> | undefined;
+    let settled = -1;
     void loadYouTube().then(() => {
       if (!active || !host.current) return;
       const el = document.createElement("div");
@@ -877,6 +898,27 @@ function Player({
               1000,
             );
           },
+          // 1 = tocando (YT.PlayerState.PLAYING). A consulta rápida só existe
+          // durante a reprodução de música; pausado, sobra o 1 s de sempre.
+          onStateChange: (event: { data: number }) => {
+            // 3 = carregando: um salto no meio da reprodução passa por ele e
+            // volta a 1 sem ser "uma nova reprodução".
+            const restarted = event.data === 1 && settled !== 1;
+            if (event.data !== 3) settled = event.data;
+            if (event.data === 3) return;
+            clearInterval(fastTimer);
+            fastTimer = undefined;
+            if (event.data !== 1) return;
+            if (restarted) onPlayRef.current?.();
+            if (!onFollowRef.current) return;
+            fastTimer = setInterval(
+              () =>
+                onFollowRef.current?.(
+                  Math.floor(player.getCurrentTime() * 1000),
+                ),
+              200,
+            );
+          },
           onError: () =>
             setError(
               "Não foi possível reproduzir este vídeo. Abra a fonte original ou continue com o texto.",
@@ -887,6 +929,7 @@ function Player({
     return () => {
       active = false;
       clearInterval(timer);
+      clearInterval(fastTimer);
       playerRef.current?.destroy();
       playerRef.current = null;
     };
@@ -996,7 +1039,15 @@ export function Study({ sourceId }: { sourceId: string }) {
     [transcriptionConsent, setTranscriptionConsent] = useState(false),
     [fatal, setFatal] = useState(""),
     [page, setPage] = useState(0),
-    [cardMode, setCardMode] = useState("production");
+    [cardMode, setCardMode] = useState("production"),
+    // TASK-022 / ADR-009: modo karaokê. `playingId` é o verso que está
+    // tocando — separado da seleção, para o acompanhamento não fechar o apoio
+    // nem apagar o rascunho de cartão a cada verso.
+    [follow, setFollow] = useState(true),
+    [followHold, setFollowHold] = useState(false),
+    [playingId, setPlayingId] = useState(""),
+    [offsetMs, setOffsetMs] = useState(0),
+    [offsetError, setOffsetError] = useState("");
   const playerRef = useRef<YTPlayer | null>(null),
     lastSaved = useRef(0),
     lastPosition = useRef(0),
@@ -1006,6 +1057,14 @@ export function Study({ sourceId }: { sourceId: string }) {
       lesson?.segments[0] ||
       null,
     unit = lesson?.units[0];
+  // RN-01: só letra do catálogo, com tempo e com clipe. Fora disso o
+  // deslocamento é zero e a sala se comporta como sempre (CA-04).
+  const karaoke =
+    Boolean(lesson?.source.video_id) &&
+    followsPlayback(lesson?.segments ?? []);
+  const shift = karaoke ? offsetMs : 0;
+  const seekSegment = (startMs: number) =>
+    playerRef.current?.seekTo(Math.max(0, startMs + shift) / 1000, true);
   const load = useCallback(async () => {
     try {
       const value = await api<NonNullable<typeof lesson>>(
@@ -1060,13 +1119,31 @@ export function Study({ sourceId }: { sourceId: string }) {
     },
     [sourceId],
   );
+  // RN-03: último verso cujo início deslocado já passou.
+  const followAt = useCallback(
+    (n: number) => {
+      if (!karaoke || !follow || followHold || loop || !lesson) return;
+      const index = activeSegmentIndex(
+        lesson.segments.map((segment) => segment.start_ms),
+        n,
+        offsetMs,
+      );
+      const id = index < 0 ? "" : lesson.segments[index].id;
+      setPlayingId((current) => (current === id ? current : id));
+    },
+    [karaoke, follow, followHold, loop, lesson, offsetMs],
+  );
   const onTime = useCallback(
     (n: number) => {
       setTime(n);
       lastPosition.current = n;
-      if (loop && selected?.end_ms && n >= selected.end_ms) {
-        playerRef.current?.seekTo((selected.start_ms || 0) / 1000, true);
+      if (loop && selected?.end_ms && n >= selected.end_ms + shift) {
+        playerRef.current?.seekTo(
+          Math.max(0, (selected.start_ms || 0) + shift) / 1000,
+          true,
+        );
       }
+      followAt(n);
       if (Date.now() - lastSaved.current > 10000) {
         lastSaved.current = Date.now();
         setSaved(false);
@@ -1075,8 +1152,65 @@ export function Study({ sourceId }: { sourceId: string }) {
           .catch(() => setSaved(false));
       }
     },
-    [loop, selected?.id, sourceId],
+    [loop, selected?.id, sourceId, shift, followAt],
   );
+  useEffect(() => {
+    setOffsetMs(lesson?.source.time_offset_ms ?? 0);
+  }, [lesson?.source.id, lesson?.source.time_offset_ms]);
+  // Acompanhamento desligado, pausado por clique ou preso no A–B: nenhum
+  // verso fica aceso por engano.
+  useEffect(() => {
+    if (!karaoke || !follow || followHold || loop) setPlayingId("");
+  }, [karaoke, follow, followHold, loop]);
+  // A lista vai até o verso — trocando de página se preciso — e rola sem
+  // animação quando o sistema pede movimento reduzido (RN-05).
+  useEffect(() => {
+    if (!playingId || !lesson) return;
+    const index = lesson.segments.findIndex((s) => s.id === playingId);
+    const target = Math.floor(index / 30);
+    if (index >= 0 && target !== page) {
+      setPage(target);
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-segment-id="${playingId}"]`)
+        ?.scrollIntoView({
+          block: "nearest",
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "auto"
+            : "smooth",
+        });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [playingId, page]);
+  useEffect(() => {
+    try {
+      setFollow(localStorage.getItem("fq-karaoke") !== "0");
+    } catch {
+      // Sem armazenamento: acompanhar fica ligado, o padrão.
+    }
+  }, []);
+  const applyFollow = useCallback((next: boolean) => {
+    setFollow(next);
+    setFollowHold(false);
+    try {
+      localStorage.setItem("fq-karaoke", next ? "1" : "0");
+    } catch {
+      // Preferência não persiste, mas a sessão atual respeita a escolha.
+    }
+  }, []);
+  // RN-04: o ajuste é da fonte e persiste; `start_ms` não muda.
+  function changeOffset(direction: 1 | -1) {
+    const next = stepTimeOffset(offsetMs, direction);
+    if (next === offsetMs) return;
+    setOffsetMs(next);
+    setOffsetError("");
+    api(`sources/${sourceId}`, "PATCH", { timeOffsetMs: next }).catch(() =>
+      setOffsetError("Não foi possível salvar o ajuste. Ele vale só nesta visita."),
+    );
+  }
   // Lido depois da montagem: ler no initializer divergiria do HTML do servidor.
   useEffect(() => {
     try {
@@ -1136,8 +1270,12 @@ export function Study({ sourceId }: { sourceId: string }) {
         return;
       if (e.key.toLowerCase() === "r" && selected?.start_ms != null) {
         e.preventDefault();
-        playerRef.current?.seekTo(selected.start_ms / 1000, true);
+        seekSegment(selected.start_ms);
         playerRef.current?.playVideo();
+      }
+      if (e.key.toLowerCase() === "k" && karaoke) {
+        e.preventDefault();
+        applyFollow(!follow);
       }
       if (e.key.toLowerCase() === "t") {
         e.preventDefault();
@@ -1157,6 +1295,10 @@ export function Study({ sourceId }: { sourceId: string }) {
     cinema,
     wide,
     applyCinema,
+    karaoke,
+    follow,
+    shift,
+    applyFollow,
   ]);
   function context(next: { tab?: string; segment?: string }) {
     const t = next.tab || tab,
@@ -1335,6 +1477,8 @@ export function Study({ sourceId }: { sourceId: string }) {
               selected={selected}
               playerRef={playerRef}
               onTime={onTime}
+              onFollow={karaoke ? followAt : undefined}
+              onPlay={karaoke ? () => setFollowHold(false) : undefined}
             />
             {lesson.source.kind !== "text" && (
               <div className="player-toolbar">
@@ -1343,7 +1487,7 @@ export function Study({ sourceId }: { sourceId: string }) {
                   disabled={selected?.start_ms == null}
                   onClick={() => {
                     if (selected?.start_ms != null) {
-                      playerRef.current?.seekTo(selected.start_ms / 1000, true);
+                      seekSegment(selected.start_ms);
                       playerRef.current?.playVideo();
                     }
                   }}
@@ -1383,6 +1527,51 @@ export function Study({ sourceId }: { sourceId: string }) {
                     · {saved ? "salvo" : "salvando…"}
                   </small>
                 </span>
+              </div>
+            )}
+            {karaoke && (
+              <div
+                className="karaoke-toolbar"
+                role="group"
+                aria-label="Acompanhamento da letra"
+              >
+                <button
+                  className={follow ? "selected" : ""}
+                  aria-pressed={follow}
+                  onClick={() => applyFollow(!follow)}
+                >
+                  Acompanhar a letra
+                </button>
+                <span className="karaoke-offset">
+                  <span id="offset-label">Ajuste da letra</span>
+                  <button
+                    aria-describedby="offset-label offset-help"
+                    disabled={offsetMs <= -TIME_OFFSET_LIMIT_MS}
+                    onClick={() => changeOffset(-1)}
+                  >
+                    −0,5 s
+                  </button>
+                  <button
+                    aria-describedby="offset-label offset-help"
+                    disabled={offsetMs >= TIME_OFFSET_LIMIT_MS}
+                    onClick={() => changeOffset(1)}
+                  >
+                    +0,5 s
+                  </button>
+                  <output aria-live="polite">
+                    {formatTimeOffset(offsetMs)}
+                  </output>
+                </span>
+                <small id="offset-help" className="quiet">
+                  {followHold
+                    ? "Acompanhamento pausado no trecho que você escolheu; volta quando você der play."
+                    : "Tempo aproximado, da comunidade. Positivo: a letra acende depois; negativo, antes."}
+                </small>
+                {offsetError && (
+                  <small className="error-text" role="alert">
+                    {offsetError}
+                  </small>
+                )}
               </div>
             )}
           </div>
@@ -1483,18 +1672,19 @@ export function Study({ sourceId }: { sourceId: string }) {
                   .map((seg, i) => (
                     <div
                       key={seg.id}
-                      className={`segment ${seg.id === selected?.id ? "active" : ""}`}
+                      data-segment-id={seg.id}
+                      className={`segment ${seg.id === selected?.id ? "active" : ""} ${seg.id === playingId ? "playing" : ""}`}
                     >
                       <button
                         className="segment-select"
+                        aria-current={seg.id === playingId ? "time" : undefined}
                         onClick={() => {
                           setSelectedId(seg.id);
                           context({ segment: seg.id });
-                          if (seg.start_ms != null)
-                            playerRef.current?.seekTo(
-                              seg.start_ms / 1000,
-                              true,
-                            );
+                          // RN-03: escolher um trecho pausa o acompanhamento
+                          // até a próxima reprodução.
+                          if (karaoke) setFollowHold(true);
+                          if (seg.start_ms != null) seekSegment(seg.start_ms);
                         }}
                       >
                         <span className="segment-time">
@@ -1638,7 +1828,7 @@ export function Study({ sourceId }: { sourceId: string }) {
                   ? "Texto autoral de demonstração, sem vídeo associado."
                   : "A origem acompanha cada expressão que você salvar."}
                 {data.profile.shortcutsEnabled
-                  ? ` · R: repetir · T: apoio${wide ? " · C: cinema" : ""}`
+                  ? ` · R: repetir · T: apoio${karaoke ? " · K: acompanhar" : ""}${wide ? " · C: cinema" : ""}`
                   : ""}
               </span>
               <Link href="/praticar">

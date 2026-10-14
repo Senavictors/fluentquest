@@ -18,6 +18,7 @@ Arquivo novo em `migrations/`, no padrão `NNN_descricao.sql`. `scripts/migrate.
 | `006_reservation_reconciliation`        | `reconciled_at` e `reconciliation_note` — a saída da reserva ambígua (ADR-003).                                                                                                    |
 | `007_integration_credentials`           | `integration_credentials` — chave de provedor cifrada, cadastrável pela interface (ADR-005).                                                                                       |
 | `008_lyrics_catalog`                    | `sources.catalog_provider` (só `lrclib`), `catalog_id`, `catalog_duration_ms`, `catalog_meta jsonb` e índice único parcial `(user_id, catalog_provider, catalog_id)` — letra de música com atribuição própria e sem duplicata (ADR-009). Aditiva. |
+| `009_source_time_offset`                | `sources.time_offset_ms integer NOT NULL DEFAULT 0`, CHECK entre −10000 e 10000 — deslocamento da letra em relação ao clipe no modo karaokê, sem reescrever `start_ms` (ADR-009, TASK-022). Aditiva. |
 
 ## Onde cada coisa mora
 
