@@ -1,7 +1,7 @@
 ---
 estado: real
 fonte: package.json, Dockerfile, .railway/railway.ts, scripts/migrate.ts, scripts/setup.ts
-ultima-revisao: 2026-09-30 (TASK-016, ADR-007)
+ultima-revisao: 2026-10-14 (deploy de 7d87dfe)
 ---
 
 # Implantação
@@ -11,6 +11,8 @@ ultima-revisao: 2026-09-30 (TASK-016, ADR-007)
 O proprietário escolheu iniciar com um banco novo e vazio. A configuração versionada declara o repositório `Senavictors/FluentQuest` (`main`), um PostgreSQL gerenciado, o app e um volume inicial de 1 GiB. Ela foi aplicada em 21/09 no projeto dedicado `FluentQuest` (região `us-west2`); o projeto `PhisioFlow` da mesma conta não deve ser usado.
 
 Estado conferido em 05/10: app e Postgres no ar, domínio `https://fluentquest.up.railway.app`, `BETTER_AUTH_URL` igual a esse endereço, código da `main` até `0104dd1` publicado com `railway up` (o Railway **não** faz deploy automático dos pushes), nenhum usuário e sem backups — o backup nativo do Railway exige o plano Pro e foi dispensado por ora, então não grave dado que não possa perder. Detalhe e próximos passos em `.agents/tasks/active/TASK-016-preparar-implantacao-railway.md`.
+
+**Deploy de 2026-10-14.** A `main` foi publicada até `7d87dfe` (TASK-018 a TASK-023: música via LRCLIB, karaokê, painéis recolhíveis), deployment `21fe1b86`, SUCCESS. O serviço tem a fonte GitHub `Senavictors/FluentQuest`/`main`, mas push **não** dispara deploy: este foi disparado pelo agente do Railway, pelo conector desta sessão, sem mudar variável nem configuração (a CLI do Railway não está instalada nesta máquina; o pacote `railway` do `package.json` é o SDK de IaC e exige CLI 5.42.1+). O pré-deploy aplicou as migrações 008 e 009 ("Migrações FluentQuest aplicadas."); web e worker subiram com IA desligada. Em produção, `LYRICS_CATALOG_ENABLED` **não** está definida (a aba "Música" mostra "integração não configurada") e `FQ_SETUP_TOKEN` continua definida, embora o ADR-008 peça removê-la depois do primeiro acesso.
 
 **Primeiro acesso (ADR-008, TASK-017).** O caminho recomendado para criar a conta é a tela: defina `FQ_SETUP_TOKEN` no serviço (16+ caracteres aleatórios, em *Variables*), abra o domínio e preencha e-mail, senha e esse código. A tela só existe enquanto não há usuário; **remova `FQ_SETUP_TOKEN` assim que a conta for criada**. O comando por SSH do passo 6 continua válido como alternativa — o `railway ssh` interativo falhou no PowerShell do Windows (o Enter não chega ao container).
 

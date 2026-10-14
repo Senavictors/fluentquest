@@ -141,3 +141,7 @@ Com autorização do proprietário, o catálogo foi ligado em `.env.local` (`LYR
 
 Pedido do proprietário com print de produção. A barra lateral já recolhia para um trilho de 64 px, mas o botão ficava no rodapé e, numa janela baixa ou com zoom, saía da tela (a barra não rolava). Agora o botão fica no topo, ao lado do logo, e a barra rola. O painel "Expressão / Tutor / Atividade" ganhou um botão que o recolhe para um trilho de 48 px (acima de 1000 px; preferência `fq-panel`; o conteúdo só sai da vista, nada se perde). Em 1366 px a transcrição de um texto sem vídeo vai de 388 para 640 px (barra cheia) ou 532 para 784 px (barra em trilho). QA novo `scripts/layout-qa.mjs`; QA completo verde. **Só aparece em produção depois de um deploy no Railway**, que segue num commit antigo.
 
+## Atualização — 2026-10-14: deploy no Railway
+
+Com autorização do proprietário: push da `main` até `7d87dfe` e deploy no Railway (deployment `21fe1b86`, SUCCESS), disparado pelo agente do Railway porque push não faz deploy e a CLI não está instalada. Migrações 008 e 009 aplicadas no pré-deploy; produção serve o código novo (verificado pelo bundle público). Pendências de configuração em produção, que dependem do proprietário: `LYRICS_CATALOG_ENABLED` não definida (aba "Música" desligada) e `FQ_SETUP_TOKEN` ainda definida (ADR-008 pede remover). A fonte antiga "Drake - Not You Too" continua como "Material próprio" em produção; reimportar pela aba "Música" é decisão do proprietário. Detalhe em `docs/architecture/deployment.md`.
+
